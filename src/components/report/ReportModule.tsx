@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, CheckCircle, AlertCircle, FileText, Image as ImageIcon, XCircle, Search, DollarSign, Clock, Calendar, User } from 'lucide-react';
 import { UserRole, Application, Report } from '../../types';
 import { getApplications, getReports, createReport, updateReportStatus, uploadFile, getUsers } from '../../services/firestoreService';
+import { syncEvidenceForApplication } from '../../bakat/evidenceService';
 
 interface ReportModuleProps {
   currentUserRole: UserRole;
@@ -141,7 +142,29 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
       }
 
       await updateReportStatus(selectedReportItem.report.id, status, reviewerComment, additionalData);
-      showNotification(`Laporan ${status}!`, 'success');
+
+      // Integrasi Modul Bakat: laporan yang disahkan melengkapkan kitaran
+      // program → jana evidence bakat pelajar secara automatik (idempotent).
+      if (status === 'Disahkan') {
+        try {
+          const created = await syncEvidenceForApplication(selectedReportItem.app, {
+            ...selectedReportItem.report,
+            ...additionalData,
+            status: 'Disahkan',
+            reviewedAt: new Date().toISOString(),
+          });
+          if (created > 0) {
+            showNotification(`Laporan Disahkan! ${created} evidence bakat dijana untuk profil pelajar.`, 'success');
+          } else {
+            showNotification('Laporan Disahkan!', 'success');
+          }
+        } catch (evidenceError) {
+          console.error('Error generating talent evidence:', evidenceError);
+          showNotification('Laporan Disahkan! (Evidence bakat gagal dijana — guna Segerak Evidence di Radar Bakat.)', 'success');
+        }
+      } else {
+        showNotification(`Laporan ${status}!`, 'success');
+      }
       setSelectedAppId(null);
       setReviewerComment('');
       setVerifiedBudget('');

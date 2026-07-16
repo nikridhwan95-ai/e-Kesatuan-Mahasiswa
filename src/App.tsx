@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X, Radar } from 'lucide-react';
 import ApprovalWorkflow from './components/approval/ApprovalWorkflow';
 import AnalyticsDashboard from './components/dashboard/AnalyticsDashboard';
 import ApplicationModule from './components/application/ApplicationModule';
@@ -18,13 +18,15 @@ import OrganizationSettings from './components/admin/OrganizationSettings';
 import FacultyCollegeSettings from './components/admin/FacultyCollegeSettings';
 import LetterSettingsModule from './components/settings/LetterSettingsModule';
 import DataAnalyticsModule from './components/admin/DataAnalyticsModule';
+import BakatProfile from './components/bakat/BakatProfile';
+import TalentSearchModule from './components/bakat/TalentSearchModule';
 import { Application, UserRole, User as UserType } from './types';
 import { db, auth } from './firebase';
 import { doc, getDocFromServer, onSnapshot } from 'firebase/firestore';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/firestoreService';
 
-type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics';
+type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -220,8 +222,9 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display">e-Kesatuan Mahasiswa UPM</h1>
-          <p className="text-slate-500 mb-8 font-medium">(Portal Pengurusan Aktiviti Pelajar)</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display">Portal Aktiviti Pelajar UPM</h1>
+          <p className="text-slate-500 mb-2 font-medium">e-Kesatuan Mahasiswa · Radar Bakat</p>
+          <p className="text-xs text-slate-400 mb-8">Pengurusan aktiviti pelajar & kecerdasan bakat dalam satu portal bersepadu</p>
           <button 
             onClick={handleLogin}
             className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
@@ -241,6 +244,7 @@ export default function App() {
     switch (currentUserRole) {
       case 'student':
         items.push({ id: 'profile', label: 'Profil Saya', icon: User });
+        items.push({ id: 'bakat', label: 'Profil Bakat', icon: Radar });
         items.push({ id: 'applications', label: 'Permohonan Saya', icon: FileText });
         items.push({ id: 'reports', label: 'Laporan Pasca Program', icon: FileBarChart });
         break;
@@ -263,6 +267,7 @@ export default function App() {
         break;
       case 'admin':
         items.push({ id: 'analytics', label: 'Analitik Data', icon: BarChart2 });
+        items.push({ id: 'bakat', label: 'Radar Bakat', icon: Radar });
         items.push({ id: 'applications', label: 'Semua Permohonan', icon: FileText });
         items.push({ id: 'approvals', label: 'Pengurusan Kelulusan', icon: CheckSquare });
         items.push({ id: 'presentations', label: 'Jadual Semakan', icon: Clock });
@@ -290,6 +295,21 @@ export default function App() {
         return <AnalyticsDashboard currentUserRole={currentUserRole} />;
       case 'profile':
         return <StudentProfile userId={user.uid} />;
+      case 'bakat':
+        if (currentUserRole === 'student') {
+          return (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Profil Bakat</h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Radar 16 kompetensi anda — setiap skor diterbitkan daripada evidence program yang disahkan.
+                </p>
+              </div>
+              <BakatProfile studentId={user.uid} canDispute />
+            </div>
+          );
+        }
+        return <TalentSearchModule />;
       case 'applications':
         return <ApplicationModule currentUserRole={currentUserRole} applicantId={user.uid} />;
       case 'approvals':
@@ -535,9 +555,9 @@ export default function App() {
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <div className="flex-1">
             <h1 className="text-sm font-bold text-white leading-tight font-display tracking-tight">
-              e-Kesatuan<br/>
-              <span className="text-amber-400 text-xs block">Mahasiswa UPM</span>
-              <span className="text-[9px] text-slate-500 font-medium block mt-0.5">(Portal Pengurusan Aktiviti Pelajar)</span>
+              Portal Aktiviti<br/>
+              <span className="text-amber-400 text-xs block">Pelajar UPM</span>
+              <span className="text-[9px] text-slate-500 font-medium block mt-0.5">e-Kesatuan Mahasiswa · Radar Bakat</span>
             </h1>
           </div>
           <button 
@@ -610,6 +630,7 @@ export default function App() {
               <span className="truncate max-w-[150px] sm:max-w-none">
                 {activeTab === 'dashboard' && 'Papan Pemuka Utama'}
                 {activeTab === 'profile' && 'Profil Pelajar'}
+                {activeTab === 'bakat' && 'Modul Bakat'}
                 {activeTab === 'applications' && 'Modul Permohonan'}
                 {activeTab === 'approvals' && 'Modul Kelulusan'}
                 {activeTab === 'reports' && 'Modul Pelaporan'}

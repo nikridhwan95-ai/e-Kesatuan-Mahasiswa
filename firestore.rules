@@ -155,5 +155,38 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
+
+    // Modul Bakat — evidence kompetensi (IRON RULE: skor TIDAK disimpan;
+    // hanya evidence disimpan dan skor dikira semula oleh klien).
+    match /evidence/{evidenceId} {
+      function isValidEvidence(data) {
+        return hasRequiredFields(['student_id', 'source_type', 'source_id', 'competency_id', 'points', 'status', 'narrative', 'event_date']) &&
+               (data.status in ['pending', 'approved', 'disputed', 'void']) &&
+               (data.source_type in ['participation', 'committee_role', 'competition_result', 'certificate', 'achievement', 'manual_endorsement']) &&
+               isValidNumber(data.points, 0, 10) &&
+               isValidString(data.narrative, 1, 300);
+      }
+
+      // Hanya status yang berubah, dan hanya kepada 'disputed' — evidence
+      // adalah rekod tak boleh ubah; pelajar cuma boleh membekukan sumbangannya.
+      function isDisputeOnly() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+               request.resource.data.status == 'disputed' &&
+               resource.data.status == 'approved';
+      }
+
+      allow read: if isAuthenticated() && (resource.data.student_id == request.auth.uid || isManagement());
+
+      // Evidence dijana oleh aliran kerja e-Kesatuan (pengesahan laporan oleh
+      // Unit Pelaporan / backfill admin) — kedua-duanya peranan pengurusan.
+      allow create: if isManagement() && isValidEvidence(request.resource.data);
+
+      allow update: if isAuthenticated() && (
+                      (resource.data.student_id == request.auth.uid && isDisputeOnly()) ||
+                      (isManagement() && isValidEvidence(request.resource.data))
+                    );
+
+      allow delete: if isAdmin();
+    }
   }
 }
