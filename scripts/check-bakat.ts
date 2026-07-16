@@ -9,6 +9,7 @@ import {
   Evidence,
 } from '../src/bakat/domain';
 import { deriveEvidence, qualifiesForEvidence, LEVEL_MAP, ROLE_MAP } from '../src/bakat/derive';
+import { bandOf, overallScore } from '../src/bakat/insights';
 import { Application, Report } from '../src/types';
 
 let failures = 0;
@@ -188,6 +189,29 @@ function report(partial?: Partial<Report>): Report {
   assert('kategori Sukan → SPO', rows.some((e) => e.competency_id === 'SPO'));
   assert('Kemahiran Kerja Berpasukan → NET', rows.some((e) => e.competency_id === 'NET'));
   assert('bajet disahkan → FIN', rows.some((e) => e.competency_id === 'FIN'));
+}
+
+console.log('\nSkor keseluruhan & jalur:');
+
+// 13) Skor keseluruhan = purata 3 skor tertinggi; 0 tanpa evidence.
+{
+  const scores = recalculateStudent('S1', COMPETENCY_CODES, [
+    ev({ id: 'a', competency_id: 'LEA', points: 8, weight_factors: { role: 'chairperson', level: 'national' }, event_date: NOW }),
+    ev({ id: 'b', competency_id: 'PRJ', points: 6, weight_factors: { role: 'chairperson', level: 'national' }, event_date: NOW }),
+    ev({ id: 'c', competency_id: 'FIN', points: 4, weight_factors: { level: 'university' }, event_date: NOW }),
+  ], NOW);
+  const top3 = scores.map((s) => s.score).sort((a, b) => b - a).slice(0, 3);
+  const expected = Math.round((top3.reduce((a, b) => a + b, 0) / 3) * 10) / 10;
+  assert('skor keseluruhan = purata 3 tertinggi', overallScore(scores) === expected);
+  assert('tiada evidence → skor keseluruhan 0', overallScore(recalculateStudent('S9', COMPETENCY_CODES, [], NOW)) === 0);
+}
+
+// 14) Jalur prestasi mengikut sempadan yang dipapar dalam legenda.
+{
+  assert('90 → cemerlang', bandOf(90) === 'cemerlang');
+  assert('70 → baik', bandOf(70) === 'baik');
+  assert('50 → berkembang', bandOf(50) === 'berkembang');
+  assert('49.9 → perlu peningkatan', bandOf(49.9) === 'perlu');
 }
 
 console.log(failures === 0 ? '\nSemua semakan Modul Bakat LULUS.' : `\n${failures} semakan GAGAL.`);

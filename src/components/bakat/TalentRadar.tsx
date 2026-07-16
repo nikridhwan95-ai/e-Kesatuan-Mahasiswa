@@ -47,7 +47,7 @@ export default function TalentRadar({
         y={props.y}
         textAnchor={props.textAnchor as 'start' | 'middle' | 'end'}
         dominantBaseline="central"
-        className={`cursor-pointer select-none ${isActive ? 'fill-blue-600 font-semibold' : 'fill-slate-500'}`}
+        className={`cursor-pointer select-none ${isActive ? 'fill-indigo-600 font-semibold' : 'fill-slate-500'}`}
         style={{ fontSize: 11 }}
         role="button"
         tabIndex={0}
@@ -90,8 +90,8 @@ export default function TalentRadar({
               <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
               <Radar
                 dataKey="score"
-                stroke="#2563eb"
-                fill="#2563eb"
+                stroke="#4f46e5"
+                fill="#4f46e5"
                 fillOpacity={0.3}
                 isAnimationActive={false}
                 dot
@@ -113,7 +113,7 @@ export default function TalentRadar({
               <tr key={d.code} className="border-b border-slate-100">
                 <td className="py-1.5">
                   <button
-                    className="text-left text-slate-700 hover:text-blue-600 hover:underline"
+                    className="text-left text-slate-700 hover:text-indigo-600 hover:underline"
                     onClick={() => onAxisClick?.(d.code)}
                   >
                     {d.label}

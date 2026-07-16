@@ -305,7 +305,15 @@ export default function App() {
                   Radar 16 kompetensi anda — setiap skor diterbitkan daripada evidence program yang disahkan.
                 </p>
               </div>
-              <BakatProfile studentId={user.uid} canDispute />
+              <BakatProfile
+                studentId={user.uid}
+                studentName={userData?.displayName || userData?.name || user?.displayName || undefined}
+                matricNumber={userData?.matricNumber}
+                faculty={userData?.faculty}
+                college={userData?.college}
+                showHeader
+                canDispute
+              />
             </div>
           );
         }
