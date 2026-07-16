@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    function isStudent() {
+      return hasRole('student');
+    }
+
+    function isReviewer() {
+      return hasRole('unit_semakan') || hasRole('unit_pembentangan') || hasRole('unit_kertas_kerja') || hasRole('unit_pelaporan');
+    }
+
+    function isAdmin() {
+      return hasRole('admin') || (isAuthenticated() && request.auth.token.email == 'nikridhwan95@gmail.com');
+    }
+
+    function isYDP() {
+      return hasRole('ydp');
+    }
+
+    function isTNCHEPA() {
+      return hasRole('tnc_hepa');
+    }
+
+    function isManagement() {
+      return isReviewer() || isAdmin() || isYDP() || isTNCHEPA();
+    }
+
+    // Data Validation Helpers
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidString(text, min, max) {
+      return text is string && text.size() >= min && text.size() <= max;
+    }
+
+    function isValidNumber(num, min, max) {
+      return num is number && num >= min && num <= max;
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches('^https://.*') || url.matches('^http://.*'));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isNow(time) {
+      return time == request.time;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    match /users/{userId} {
+      function isValidUser(data) {
+        return hasRequiredFields(['uid', 'email', 'role', 'name']) &&
+               data.uid == userId &&
+               isValidEmail(data.email) &&
+               isValidString(data.name, 1, 100) &&
+               (data.role in ['student', 'unit_semakan', 'unit_pembentangan', 'unit_kertas_kerja', 'unit_pelaporan', 'admin', 'ydp', 'tnc_hepa']);
+      }
+
+      allow read: if isAuthenticated() && (isOwner(userId) || isManagement());
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (
+                      (isOwner(userId) && request.resource.data.role == resource.data.role) || 
+                      isAdmin()
+                    );
+    }
+
+    match /applications/{applicationId} {
+      function isValidApplication(data) {
+        return hasRequiredFields(['applicantId', 'title', 'status', 'createdAt']) &&
+               isValidString(data.title, 1, 200) &&
+               isValidString(data.status, 1, 50) &&
+               (data.status in ['Draf', 'Menunggu Semakan', 'Perlu Pembetulan', 'Menunggu Pembentangan', 'Menunggu Kelulusan YDP', 'Menunggu Kelulusan TNC HEPA', 'Lulus Sepenuhnya', 'Ditolak', 'Dibatalkan']) &&
+               isValidNumber(data.budget, 0, 1000000) &&
+               (!('applicantPosition' in data) || data.applicantPosition in ['Pengarah', 'Setiausaha']);
+      }
+
+      allow read: if isAuthenticated() && (resource.data.applicantId == request.auth.uid || isManagement());
+      
+      allow create: if isAuthenticated() && 
+                    request.resource.data.applicantId == request.auth.uid &&
+                    isValidApplication(request.resource.data);
+
+      allow update: if isAuthenticated() && (
+                      (resource.data.applicantId == request.auth.uid && resource.data.status in ['Draf', 'Perlu Pembetulan']) ||
+                      isManagement()
+                    ) && isValidApplication(request.resource.data);
+
+      allow delete: if isAdmin();
+    }
+
+    match /presentationSessions/{sessionId} {
+      function isValidSession(data) {
+        return hasRequiredFields(['name', 'startDate', 'endDate', 'status']) &&
+               isValidString(data.name, 1, 100) &&
+               (data.status in ['Open', 'Closed']);
+      }
+
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidSession(request.resource.data);
+    }
+
+    match /reports/{reportId} {
+      function isValidReport(data) {
+        return hasRequiredFields(['applicationId', 'applicantId', 'status']) &&
+               (data.status in ['Tertunggak', 'Dihantar', 'Disahkan', 'Perlu Pembetulan']) &&
+               (!('unionBudgetUsed' in data) || data.unionBudgetUsed is number) &&
+               (!('verifiedBudgetUsed' in data) || data.verifiedBudgetUsed is number);
+      }
+
+      allow read: if isAuthenticated() && (resource.data.applicantId == request.auth.uid || isManagement());
+      allow create: if isAuthenticated() && request.resource.data.applicantId == request.auth.uid && isValidReport(request.resource.data);
+      allow update: if isAuthenticated() && (
+                      (resource.data.applicantId == request.auth.uid && resource.data.status in ['Tertunggak', 'Perlu Pembetulan']) ||
+                      isManagement()
+                    ) && isValidReport(request.resource.data);
+
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}
