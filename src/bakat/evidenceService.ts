@@ -2,7 +2,7 @@
 //
 // Prinsip storan (IRON RULE §4.4): HANYA evidence disimpan — skor kompetensi
 // TIDAK PERNAH ditulis ke pangkalan data. Skor sentiasa dikira semula oleh
-// enjin dalam src/bakat/domain/scoring.ts daripada evidence 'approved'.
+// enjin dalam src/bakat/domain/scoring.ts daripada evidens 'approved'.
 
 import { supabase } from '../supabase';
 import { Application, Report } from '../types';
@@ -37,7 +37,7 @@ export async function disputeEvidenceDoc(evidenceId: string): Promise<void> {
 
 // Jana & simpan evidence bagi SATU program yang layak (idempotent).
 // ON CONFLICT DO NOTHING — rekod sedia ada TIDAK ditulis semula: evidence
-// bersifat tak boleh ubah, dan status dispute/void yang ditetapkan mesti kekal.
+// bersifat tidak boleh diubah, dan status dispute/void yang ditetapkan mesti kekal.
 export async function syncEvidenceForApplication(
   app: Application,
   report: Report | undefined

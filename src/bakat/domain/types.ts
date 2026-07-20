@@ -50,9 +50,9 @@ export type EvidenceSourceType =
 
 export type EvidenceStatus = 'pending' | 'approved' | 'disputed' | 'void';
 
-// THE central record (§7.3 evidence) — satu rekod tak boleh ubah per delta
+// THE central record (§7.3 evidence) — satu rekod yang tidak boleh diubah per delta
 // kompetensi per fakta. Skor TIDAK PERNAH disimpan (IRON RULE §4.4); ia
-// sentiasa diterbitkan semula oleh enjin skor daripada evidence 'approved'.
+// sentiasa diterbitkan semula oleh enjin skor daripada evidens 'approved'.
 // Dalam portal bersepadu ini: student_id = users.uid (Firebase Auth) dan
 // source_id merujuk kepada applications.id e-Kesatuan bagi evidence terbitan.
 export interface Evidence {

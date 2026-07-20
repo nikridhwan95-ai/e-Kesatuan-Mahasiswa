@@ -144,7 +144,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
       await updateReportStatus(selectedReportItem.report.id, status, reviewerComment, additionalData);
 
       // Integrasi Modul Bakat: laporan yang disahkan melengkapkan kitaran
-      // program → jana evidence bakat pelajar secara automatik (idempotent).
+      // program → jana evidens bakat pelajar secara automatik (idempotent).
       if (status === 'Disahkan') {
         try {
           const created = await syncEvidenceForApplication(selectedReportItem.app, {
@@ -154,13 +154,13 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
             reviewedAt: new Date().toISOString(),
           });
           if (created > 0) {
-            showNotification(`Laporan Disahkan! ${created} evidence bakat dijana untuk profil pelajar.`, 'success');
+            showNotification(`Laporan Disahkan! ${created} evidens bakat dijana untuk profil pelajar.`, 'success');
           } else {
             showNotification('Laporan Disahkan!', 'success');
           }
         } catch (evidenceError) {
           console.error('Error generating talent evidence:', evidenceError);
-          showNotification('Laporan Disahkan! (Evidence bakat gagal dijana — guna Segerak Evidence di Radar Bakat.)', 'success');
+          showNotification('Laporan Disahkan! (Evidens bakat gagal dijana — guna Segerakkan Evidens di Radar Bakat.)', 'success');
         }
       } else {
         showNotification(`Laporan ${status}!`, 'success');
@@ -192,7 +192,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
           <h2 className="text-xl sm:text-3xl font-bold text-slate-900 font-display tracking-tight">
-            {isStudent ? 'Pelaporan Pasca Program' : 'Semakan Laporan Program'}
+            {isStudent ? 'Pelaporan Pascaprogram' : 'Semakan Laporan Program'}
           </h2>
           <p className="text-[10px] sm:text-sm text-slate-500 mt-1 sm:mt-1.5">
             {isStudent 
@@ -208,7 +208,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
             <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
-              placeholder="Cari laporan, nama pelajar, atau ID..." 
+              placeholder="Cari laporan, nama pelajar atau ID..." 
               className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             />
           </div>
@@ -655,7 +655,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
               <FileText className="w-16 h-16 mb-4 text-slate-200" />
               <p className="font-medium text-slate-600">Pilih laporan di sebelah kiri</p>
               <p className="text-sm mt-1">
-                {isStudent ? 'Untuk mula memuat naik laporan pasca program.' : 'Untuk menyemak laporan yang dihantar.'}
+                {isStudent ? 'Untuk mula memuat naik laporan pascaprogram.' : 'Untuk menyemak laporan yang dihantar.'}
               </p>
             </div>
           )}

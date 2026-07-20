@@ -1,10 +1,10 @@
 // JAMBATAN INTEGRASI e-Kesatuan → Modul Bakat.
 // Fungsi TULEN yang menterjemah fakta e-Kesatuan (permohonan yang Lulus
-// Sepenuhnya + laporan pasca program yang Disahkan) kepada rekod Evidence.
+// Sepenuhnya + laporan pascaprogram yang Disahkan) kepada rekod Evidence.
 //
 // Evidence terbitan lahir dengan status 'approved' kerana fakta asalnya telah
 // melalui rantaian kelulusan penuh e-Kesatuan (Unit Semakan → Pembentangan →
-// YDP → TNC HEPA) DAN laporan pasca program disahkan oleh Unit Pelaporan.
+// YDP → TNC HEPA) DAN laporan pascaprogram disahkan oleh Unit Pelaporan.
 //
 // ID evidence adalah deterministik (appId + jenis sumber + kompetensi) supaya
 // penjanaan semula bersifat idempotent — rekod sedia ada tidak diganda.

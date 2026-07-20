@@ -1,5 +1,5 @@
 // Pembantu TULEN untuk paparan kecerdasan bakat (papan pemuka & profil).
-// Semua angka diterbitkan daripada evidence sebenar — tiada statistik rekaan.
+// Semua angka diterbitkan daripada evidens sebenar — tiada statistik rekaan.
 
 import { User } from '../types';
 import {
@@ -148,7 +148,7 @@ export function computeSorotan(stats: CohortStats): Sorotan[] {
   if (top && top.studentCount > 0) {
     out.push({
       title: 'Kompetensi Paling Meluas',
-      body: `${top.studentCount} pelajar mempunyai evidence ${nameOf(top.code)} (purata skor ${top.avgScore}).`,
+      body: `${top.studentCount} pelajar mempunyai evidens ${nameOf(top.code)} (purata skor ${top.avgScore}).`,
       tone: 'positive',
     });
   }
@@ -156,7 +156,7 @@ export function computeSorotan(stats: CohortStats): Sorotan[] {
   const lea = named('LEA');
   if (lea && lea.studentCount > 0) {
     out.push({
-      title: 'Kepimpinan Memuncul',
+      title: 'Kepimpinan Sedang Muncul',
       body: `${lea.studentCount} pelajar membina rekod kepimpinan melalui jawatan Pengarah/Setiausaha program yang disahkan.`,
       tone: 'positive',
     });
@@ -167,7 +167,7 @@ export function computeSorotan(stats: CohortStats): Sorotan[] {
   if (gap && covered.length > 1) {
     out.push({
       title: `Jurang ${nameOf(gap.code)}`,
-      body: `Hanya ${gap.studentCount} pelajar mempunyai evidence ${nameOf(gap.code)} — pertimbangkan program yang menyasarkan kompetensi ini.`,
+      body: `Hanya ${gap.studentCount} pelajar mempunyai evidens ${nameOf(gap.code)} — pertimbangkan program yang menyasarkan kompetensi ini.`,
       tone: 'warning',
     });
   }
@@ -175,7 +175,7 @@ export function computeSorotan(stats: CohortStats): Sorotan[] {
   if (stats.withoutEvidenceCount > 0) {
     out.push({
       title: 'Pelajar Belum Berprofil',
-      body: `${stats.withoutEvidenceCount} pelajar belum mempunyai evidence — profil bermula apabila program mereka lulus sepenuhnya dan laporannya disahkan.`,
+      body: `${stats.withoutEvidenceCount} pelajar belum mempunyai evidens — profil bermula apabila program mereka lulus sepenuhnya dan laporannya disahkan.`,
       tone: 'info',
     });
   }
@@ -193,7 +193,7 @@ export function talentSummary(name: string | undefined, row: {
   const who = name ?? 'Pelajar ini';
   const names = row.strengths.slice(0, 2).map((s) => nameOf(s.competency_id));
   const kekuatan = names.length === 2 ? `${names[0]} dan ${names[1]}` : names[0];
-  return `${who} menunjukkan kekuatan dalam ${kekuatan}, diterbitkan daripada ${row.approvedCount} evidence yang disahkan merentas ${row.programmeCount} program e-Kesatuan.`;
+  return `${who} menunjukkan kekuatan dalam ${kekuatan}, diterbitkan daripada ${row.approvedCount} evidens yang disahkan merentas ${row.programmeCount} program e-Kesatuan.`;
 }
 
 // nama BM kompetensi tanpa import kitaran berat

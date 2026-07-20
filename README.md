@@ -1,7 +1,7 @@
 # Portal Aktiviti Pelajar UPM
 
 Portal bersepadu **e-Kesatuan Mahasiswa** (pengurusan permohonan aktiviti,
-aliran kelulusan, laporan pasca program) + **Modul Bakat / Radar Bakat**
+aliran kelulusan, laporan pascaprogram) + **Modul Bakat / Radar Bakat**
 (kecerdasan bakat evidence-first). Dibina dengan Vite + React + Tailwind,
 disokong oleh **Supabase** (Auth + Postgres + Storage).
 

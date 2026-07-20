@@ -70,7 +70,7 @@ export default function CategorySettings() {
             type="text" 
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
-            placeholder="Nama Kategori Baru (contoh: Keusahawanan)" 
+            placeholder="Nama Kategori Baharu (contoh: Keusahawanan)" 
             className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             disabled={submitting}
           />

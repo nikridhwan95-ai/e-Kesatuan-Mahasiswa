@@ -3,16 +3,16 @@
 Portal bersepadu yang menggabungkan dua modul yang saling berkait:
 
 1. **e-Kesatuan Mahasiswa** — pengurusan permohonan aktiviti, aliran kelulusan
-   (Unit Semakan → Pembentangan → YDP → TNC HEPA) dan laporan pasca program.
+   (Unit Semakan → Pembentangan → YDP → TNC HEPA) dan laporan pascaprogram.
 2. **Modul Bakat (Talent Hub)** — kecerdasan bakat pelajar berasaskan prinsip
    *evidence-first* (SDD TalentOS v2.0): skor kompetensi TIDAK PERNAH disimpan
    sebagai kebenaran (IRON RULE §4.4); setiap skor diterbitkan semula oleh enjin
-   deterministik (`src/bakat/domain/scoring.ts`) daripada rekod evidence yang
+   deterministik (`src/bakat/domain/scoring.ts`) daripada rekod evidens yang
    tidak boleh diubah.
 
 **Titik integrasi:** apabila satu permohonan mencapai status `Lulus Sepenuhnya`
-DAN laporan pasca programnya `Disahkan` oleh Unit Pelaporan, sistem menjana
-rekod evidence bakat secara automatik (`src/bakat/derive.ts`):
+DAN laporan pascaprogramnya `Disahkan` oleh Unit Pelaporan, sistem menjana
+rekod evidens bakat secara automatik (`src/bakat/derive.ts`):
 
 - Jawatan pemohon (Pengarah/Setiausaha) → evidence `committee_role` untuk
   Kepimpinan (LEA), Pengurusan Projek (PRJ) dan Literasi Kewangan (FIN, jika
@@ -38,7 +38,7 @@ Semakan sifat enjin: `npm run check:bakat`.
     /dashboard          # Papan pemuka untuk pelbagai peranan
     /application        # Borang permohonan & muat naik kertas kerja
     /approval           # Aliran kelulusan (ApprovalWorkflow.tsx)
-    /report             # Modul pelaporan pasca-program
+    /report             # Modul pelaporan pascaprogram
     /bakat              # UI Modul Bakat (TalentRadar, BakatProfile, TalentSearchModule)
     /ui                 # Komponen UI guna semula (Butang, Modal, Kad)
   /bakat
@@ -116,7 +116,7 @@ Menyimpan sejarah semakan dan komen dari pelbagai pihak (Penyemak, Urus Setia, Y
 - \`createdAt\` (Timestamp)
 
 ### Koleksi: \`reports\`
-Menyimpan laporan pasca-program.
+Menyimpan laporan pascaprogram.
 - \`id\` (String)
 - \`applicationId\` (String) - Rujukan ke \`applications.id\`
 - \`studentId\` (String) - Rujukan ke \`users.uid\`

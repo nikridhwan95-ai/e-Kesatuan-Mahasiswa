@@ -107,7 +107,7 @@ export default function App() {
       }
     } catch (error) {
       console.error('Error loading profile:', error);
-      showNotification('Gagal memuat profil. Pastikan supabase/schema.sql telah dijalankan.', 'error');
+      showNotification('Gagal memuatkan profil. Pastikan supabase/schema.sql telah dijalankan.', 'error');
     } finally {
       setLoading(false);
     }
@@ -193,7 +193,7 @@ export default function App() {
       const targetUser = await getUserByEmail(newRoleEmail);
       if (targetUser) {
         await updateUserProfile(targetUser.uid, { role: newRoleValue });
-        showNotification(`Peranan berjaya dikemaskini untuk ${newRoleEmail}`, 'success');
+        showNotification(`Peranan berjaya dikemas kini untuk ${newRoleEmail}`, 'success');
         setNewRoleEmail('');
         fetchUsers(); // Refresh list
       } else {
@@ -248,7 +248,7 @@ export default function App() {
     if (user && userData) {
       try {
         await updateUserProfile(user.uid, { role: newRole });
-        showNotification(`Peranan anda telah dikemaskini kepada ${newRole}.`, 'success');
+        showNotification(`Peranan anda telah dikemas kini kepada ${newRole}.`, 'success');
         await loadProfile(user);
       } catch (error) {
         console.error("Failed to update role:", error);
@@ -273,7 +273,7 @@ export default function App() {
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
           <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display">Portal Aktiviti Pelajar UPM</h1>
           <p className="text-slate-500 mb-2 font-medium">e-Kesatuan Mahasiswa · Radar Bakat</p>
-          <p className="text-xs text-slate-400 mb-8">Pengurusan aktiviti pelajar & kecerdasan bakat dalam satu portal bersepadu</p>
+          <p className="text-xs text-slate-400 mb-8">Pengurusan aktiviti pelajar dan kecerdasan bakat dalam satu portal bersepadu</p>
 
           <form onSubmit={handleLogin} className="space-y-4 text-left">
             <div>
@@ -339,7 +339,7 @@ export default function App() {
         items.push({ id: 'profile', label: 'Profil Saya', icon: User });
         items.push({ id: 'bakat', label: 'Profil Bakat', icon: Radar });
         items.push({ id: 'applications', label: 'Permohonan Saya', icon: FileText });
-        items.push({ id: 'reports', label: 'Laporan Pasca Program', icon: FileBarChart });
+        items.push({ id: 'reports', label: 'Laporan Pascaprogram', icon: FileBarChart });
         break;
       case 'unit_semakan':
         items.push({ id: 'approvals', label: 'Semakan Kertas Kerja', icon: CheckSquare });
@@ -395,7 +395,7 @@ export default function App() {
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Profil Bakat</h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Radar 16 kompetensi anda — setiap skor diterbitkan daripada evidence program yang disahkan.
+                  Radar 16 kompetensi anda — setiap skor diterbitkan daripada evidens program yang disahkan.
                 </p>
               </div>
               <BakatProfile
@@ -591,10 +591,10 @@ export default function App() {
                   <div className="p-6 border-t border-slate-100">
                     <h3 className="text-lg font-bold text-red-600 mb-4 font-display">Pengurusan Data (Bahaya)</h3>
                     <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                      <p className="text-sm text-red-700 mb-4">Padam semua data permohonan untuk memulakan sesi baru. Tindakan ini akan memadam semua rekod permohonan secara kekal.</p>
+                      <p className="text-sm text-red-700 mb-4">Padam semua data permohonan untuk memulakan sesi baharu. Tindakan ini akan memadam semua rekod permohonan secara kekal.</p>
                       {showDeleteConfirm ? (
                         <div className="bg-white p-4 rounded-lg border border-red-200 shadow-sm">
-                          <p className="text-sm font-bold text-slate-900 mb-3">Adakah anda pasti? Tindakan ini tidak boleh diundur.</p>
+                          <p className="text-sm font-bold text-slate-900 mb-3">Adakah anda pasti? Tindakan ini tidak boleh dikembalikan.</p>
                           <div className="flex gap-3">
                             <button 
                               onClick={handleStartFresh}
@@ -617,7 +617,7 @@ export default function App() {
                           onClick={() => setShowDeleteConfirm(true)}
                           className="bg-red-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
                         >
-                          Padam Semua Permohonan (Start Fresh)
+                          Padam Semua Permohonan (Mula Semula)
                         </button>
                       )}
                     </div>

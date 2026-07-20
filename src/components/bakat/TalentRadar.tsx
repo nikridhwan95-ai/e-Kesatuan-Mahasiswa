@@ -75,7 +75,7 @@ export default function TalentRadar({
           aria-pressed={showTable}
         >
           <Table2 className="h-4 w-4" aria-hidden />
-          {showTable ? 'Papar carta' : 'Papar jadual'}
+          {showTable ? 'Paparkan carta' : 'Paparkan jadual'}
         </button>
       </div>
 

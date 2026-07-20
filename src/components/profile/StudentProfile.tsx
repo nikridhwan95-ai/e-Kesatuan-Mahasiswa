@@ -96,7 +96,7 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
         photoURL: authUser.photoURL || profile.photoURL,
         email: authUser.email || profile.email
       });
-      alert("Maklumat berjaya diekstrak dari akaun log masuk.");
+      alert("Maklumat berjaya diekstrak daripada akaun log masuk.");
     } else {
       alert("Tiada maklumat pengguna ditemui.");
     }
@@ -107,7 +107,7 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
     try {
       await updateUserProfile(userId, profile);
       setIsEditing(false);
-      alert("Profil berjaya dikemaskini.");
+      alert("Profil berjaya dikemas kini.");
     } catch (error) {
       console.error("Error updating profile:", error);
       alert("Gagal mengemaskini profil.");
@@ -149,7 +149,7 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Profil Pemohon</h2>
-        <p className="text-sm text-slate-500 mt-1">Kemaskini maklumat peribadi dan jawatan anda.</p>
+        <p className="text-sm text-slate-500 mt-1">Kemas kini maklumat peribadi dan jawatan anda.</p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -179,9 +179,9 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                 <button 
                   onClick={handleExtractFromEmail}
                   className="flex items-center gap-2 bg-white/90 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-white transition-colors"
-                  title="Ambil gambar dan nama dari akaun Google"
+                  title="Ambil gambar dan nama daripada akaun log masuk"
                 >
-                  <RefreshCw className="w-4 h-4" /> Ekstrak dari Google
+                  <RefreshCw className="w-4 h-4" /> Ekstrak daripada Akaun
                 </button>
                 <button 
                   onClick={handleSave}
@@ -195,7 +195,7 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                 onClick={() => setIsEditing(true)}
                 className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-semibold backdrop-blur-sm transition-colors"
               >
-                Kemaskini Profil
+                Kemas Kini Profil
               </button>
             )}
           </div>

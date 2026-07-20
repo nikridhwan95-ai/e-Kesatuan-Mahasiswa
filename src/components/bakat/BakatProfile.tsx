@@ -28,9 +28,9 @@ interface BakatProfileProps {
   canDispute?: boolean;
 }
 
-// Profil Bakat — kad profil + Talent Radar + drill-down evidence + Lejar Evidence.
+// Profil Bakat — kad profil + Talent Radar + drill-down evidence + Lejar Evidens.
 // IRON RULE: skor TIDAK diambil dari storan; ia dikira semula di sini,
-// pada masa nyata, daripada evidence 'approved' sahaja.
+// pada masa nyata, daripada evidens 'approved' sahaja.
 export default function BakatProfile({
   studentId,
   studentName,
@@ -133,7 +133,7 @@ export default function BakatProfile({
   const handleDispute = async (id: string) => {
     try {
       await disputeEvidenceDoc(id);
-      setNotification('Evidence ditanda sebagai dipertikai. Skor telah dikira semula tanpa evidence ini.');
+      setNotification('Evidens ditandakan sebagai dipertikaikan. Skor telah dikira semula tanpa evidens ini.');
       setTimeout(() => setNotification(null), 4000);
       await fetchEvidence();
     } catch (error) {
@@ -195,8 +195,8 @@ export default function BakatProfile({
           <Sparkles className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <h3 className="font-display text-lg font-bold text-slate-900 mb-2">Profil bakat belum bermula</h3>
           <p className="text-sm text-slate-500 max-w-md mx-auto">
-            Evidence bakat dijana secara automatik apabila program yang {studentName ? `diurus oleh ${studentName}` : 'anda uruskan'} diluluskan
-            sepenuhnya dan laporan pasca programnya disahkan oleh Unit Pelaporan. Mohon dan laksanakan
+            Evidens bakat dijana secara automatik apabila program yang {studentName ? `diurus oleh ${studentName}` : 'anda uruskan'} diluluskan
+            sepenuhnya dan laporan pascaprogramnya disahkan oleh Unit Pelaporan. Mohon dan laksanakan
             program melalui modul Permohonan untuk mula membina profil bakat.
           </p>
         </div>
@@ -206,7 +206,7 @@ export default function BakatProfile({
             {/* Radar */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
               <h3 className="font-display text-lg font-bold text-slate-900">Radar Bakat (16 Kompetensi)</h3>
-              <p className="text-xs text-slate-500 mb-2">Klik mana-mana paksi untuk melihat evidence di sebaliknya.</p>
+              <p className="text-xs text-slate-500 mb-2">Klik mana-mana paksi untuk melihat evidens di sebaliknya.</p>
               <TalentRadar
                 data={radarData}
                 active={active}
@@ -256,7 +256,7 @@ export default function BakatProfile({
                   {talentSummary(studentName, { strengths, approvedCount: approved.length, programmeCount })}
                 </p>
                 <p className="text-xs text-slate-400 mt-3 flex items-center gap-1">
-                  <Info className="w-3.5 h-3.5" /> Dikira daripada evidence — bukan janaan AI.
+                  <Info className="w-3.5 h-3.5" /> Dikira daripada evidens — bukan janaan AI.
                 </p>
               </div>
             </div>
@@ -266,19 +266,19 @@ export default function BakatProfile({
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-baseline justify-between">
               <h3 className="font-display text-lg font-bold text-slate-900">
-                Evidence: {competencyName(active)}
+                Evidens: {competencyName(active)}
               </h3>
               <span className="font-display text-2xl font-bold tabular-nums text-indigo-600">
                 {breakdown.score}
               </span>
             </div>
             <p className="text-xs text-slate-500 mb-4">
-              Jumlah sumbangan di bawah adalah TEPAT sama dengan skor paksi — tiada skor tersembunyi.
+              Jumlah sumbangan di bawah TEPAT sama dengan skor paksi — tiada skor tersembunyi.
             </p>
             <div className="space-y-2">
               {breakdown.contributions.length === 0 && nonContributing.length === 0 && (
                 <p className="py-6 text-center text-sm text-slate-500">
-                  Tiada evidence untuk kompetensi ini lagi.
+                  Tiada evidens untuk kompetensi ini lagi.
                 </p>
               )}
               {breakdown.contributions.map((c) => (
@@ -313,7 +313,7 @@ export default function BakatProfile({
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <span className="tabular-nums">{a.date}</span>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium">
-                      {a.count} evidence
+                      {a.count} evidens
                     </span>
                   </div>
                 </div>
@@ -321,12 +321,12 @@ export default function BakatProfile({
             </div>
           </div>
 
-          {/* Lejar Evidence */}
+          {/* Lejar Evidens */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <h3 className="font-display text-lg font-bold text-slate-900">Lejar Evidence</h3>
+            <h3 className="font-display text-lg font-bold text-slate-900">Lejar Evidens</h3>
             <p className="text-xs text-slate-500 mb-4 flex items-center gap-1">
               <Info className="w-3.5 h-3.5" />
-              Setiap skor diterbitkan daripada rekod evidence yang tidak boleh diubah — dijana automatik
+              Setiap skor diterbitkan daripada rekod evidens yang tidak boleh diubah — dijana automatik
               daripada program e-Kesatuan yang lulus sepenuhnya dan laporannya disahkan.
             </p>
             <div className="space-y-2">
@@ -344,7 +344,7 @@ export default function BakatProfile({
                       <button
                         onClick={() => setActive(e.competency_id)}
                         className="rounded bg-slate-100 px-1.5 py-0.5 font-mono hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
-                        title="Lihat drill-down kompetensi ini"
+                        title="Lihat perincian kompetensi ini"
                       >
                         {competencyName(e.competency_id)}
                       </button>
@@ -356,7 +356,7 @@ export default function BakatProfile({
                       onClick={() => handleDispute(e.id)}
                       className="text-xs font-medium text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
                     >
-                      Pertikai
+                      Pertikaikan
                     </button>
                   )}
                 </div>

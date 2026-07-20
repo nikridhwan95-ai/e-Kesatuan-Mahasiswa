@@ -69,7 +69,7 @@ export default function EvidenceRow({
               onClick={() => onDispute(evidence.id)}
               className="text-xs text-red-600 hover:underline"
             >
-              Pertikai
+              Pertikaikan
             </button>
           )}
         </div>
@@ -82,7 +82,7 @@ export default function EvidenceRow({
             <Factor label="Peranan" value={`× ${contribution.roleMult.toFixed(2)}`} />
             <Factor label="Peringkat" value={`× ${contribution.levelMult.toFixed(2)}`} />
             <Factor label="Kehadiran" value={`× ${contribution.attendance.toFixed(2)}`} />
-            <Factor label="Recency" value={`× ${contribution.decay.toFixed(2)}`} />
+            <Factor label="Susutan Masa" value={`× ${contribution.decay.toFixed(2)}`} />
             <Factor label="Sumbangan" value={`= ${contribution.effective.toFixed(1)}`} strong />
           </div>
         </div>
