@@ -185,7 +185,7 @@ export default function TalentSearchModule() {
                   <h3 className="font-display text-lg font-bold text-slate-900">Kompetensi</h3>
                   <span className="text-xs text-slate-400">(cincin = purata skor pelajar yang mempunyai evidence)</span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {stats.competencyStats.map((c) => {
                     const Icon = COMPETENCY_ICON[c.code];
                     return (
