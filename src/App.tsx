@@ -768,6 +768,9 @@ export default function App() {
                 {activeTab === 'profile' && 'Profil Pelajar'}
                 {activeTab === 'bakat' && 'Modul Bakat'}
                 {activeTab === 'import' && 'Import Data'}
+                {activeTab === 'analytics' && 'Analitik Data'}
+                {activeTab === 'archive' && 'Arkib Kertas Kerja'}
+                {activeTab === 'settings' && 'Tetapan'}
                 {activeTab === 'applications' && 'Modul Permohonan'}
                 {activeTab === 'approvals' && 'Modul Kelulusan'}
                 {activeTab === 'reports' && 'Modul Pelaporan'}
