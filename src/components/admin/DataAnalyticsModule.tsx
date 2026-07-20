@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts';
 import {
-  BarChart2, CheckCircle2, Loader2, Sparkles, Clock, Users2, Wallet, Coins, FileText,
+  AlertTriangle, BarChart2, CheckCircle2, Info, Loader2, Sparkles, Clock, TrendingUp, Users2, Wallet, Coins, FileText,
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { getApplications, getCategories, getReports, getUsers } from '../../services/dataService';
@@ -59,12 +59,17 @@ export default function DataAnalyticsModule() {
   const [loading, setLoading] = useState(true);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [filters, setFilters] = useState({
+  const DEFAULT_FILTERS = {
     tahun: 'Semua',
+    sesi: 'Semua',
+    semester: 'Semua',
     teras: 'Semua',
     peringkat: 'Semua',
+    status: 'Semua',
     impak: 'Semua',
-  });
+  };
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const activeFilterCount = Object.values(filters).filter((v) => v !== 'Semua').length;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,7 +107,7 @@ export default function DataAnalyticsModule() {
     return m;
   }, [reports]);
 
-  // Tahun diterbitkan daripada data sebenar (bukan senarai kod keras).
+  // Pilihan penapis diterbitkan daripada data sebenar (bukan senarai kod keras).
   const yearOptions = useMemo(() => {
     const years = new Set<string>();
     for (const a of applications) {
@@ -112,14 +117,29 @@ export default function DataAnalyticsModule() {
     return ['Semua', ...Array.from(years).sort()];
   }, [applications]);
 
+  const sesiOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of applications) if (a.academicSession) s.add(a.academicSession);
+    return ['Semua', ...Array.from(s).sort()];
+  }, [applications]);
+
+  const statusOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of applications) s.add(a.status);
+    return ['Semua', ...Array.from(s).sort()];
+  }, [applications]);
+
   const filteredApps = useMemo(() => {
     return applications.filter((app) => {
       const appYear = String(new Date(app.startDate).getFullYear());
       const matchesYear = filters.tahun === 'Semua' || appYear === filters.tahun;
+      const matchesSesi = filters.sesi === 'Semua' || app.academicSession === filters.sesi;
+      const matchesSemester = filters.semester === 'Semua' || app.semester === filters.semester;
       const matchesTeras = filters.teras === 'Semua' || app.category === filters.teras;
       const matchesPeringkat = filters.peringkat === 'Semua' || app.organizingLevel === filters.peringkat;
+      const matchesStatus = filters.status === 'Semua' || app.status === filters.status;
       const matchesImpak = filters.impak === 'Semua' || (app.softSkills ?? []).includes(filters.impak);
-      return matchesYear && matchesTeras && matchesPeringkat && matchesImpak;
+      return matchesYear && matchesSesi && matchesSemester && matchesTeras && matchesPeringkat && matchesStatus && matchesImpak;
     });
   }, [applications, filters]);
 
@@ -219,6 +239,116 @@ export default function DataAnalyticsModule() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [applications, verifiedReportByApp]);
 
+  // ── DATA KEPUTUSAN ───────────────────────────────────────────────────────
+
+  // Jadual keputusan per teras: pelaburan vs pulangan (peserta) & mutu permohonan.
+  const terasDecision = useMemo(() => {
+    const rows = categories.map((cat) => {
+      const apps = filteredApps.filter((a) => a.category === cat);
+      const approved = apps.filter((a) => a.status === 'Lulus Sepenuhnya');
+      const rejected = apps.filter((a) => a.status === 'Ditolak' || a.status === 'Dibatalkan');
+      const decided = approved.length + rejected.length;
+      let participants = 0;
+      let used = 0;
+      for (const a of approved) {
+        const rep = verifiedReportByApp.get(a.id);
+        participants += rep?.participantCount ?? 0;
+        used += rep?.verifiedBudgetUsed ?? 0;
+      }
+      return {
+        cat,
+        total: apps.length,
+        approvedCount: approved.length,
+        approvalRate: decided > 0 ? Math.round((approved.length / decided) * 100) : null,
+        participants,
+        used,
+        costPerParticipant: participants > 0 ? used / participants : null,
+      };
+    });
+    const maxCost = Math.max(0, ...rows.map((r) => r.costPerParticipant ?? 0));
+    return { rows, maxCost };
+  }, [filteredApps, categories, verifiedReportByApp]);
+
+  // Program lulus sepenuhnya yang laporannya BELUM disahkan — tindakan susulan.
+  const pendingReports = useMemo(
+    () =>
+      filteredApps.filter(
+        (a) => a.status === 'Lulus Sepenuhnya' && !verifiedReportByApp.has(a.id)
+      ),
+    [filteredApps, verifiedReportByApp]
+  );
+
+  // Sorotan keputusan berasaskan peraturan — setiap satu disertakan TINDAKAN.
+  const decisionInsights = useMemo(() => {
+    const out: { title: string; body: string; action: string; tone: 'positive' | 'warning' | 'info' }[] = [];
+    const withData = terasDecision.rows.filter((r) => r.total > 0);
+
+    // 1) Keseimbangan 8 Teras — teras tanpa aktiviti dalam skop semasa.
+    if (filters.teras === 'Semua') {
+      const empty = terasDecision.rows.filter((r) => r.total === 0).map((r) => r.cat);
+      if (empty.length > 0 && withData.length > 0) {
+        out.push({
+          tone: 'warning',
+          title: 'Teras Tanpa Aktiviti',
+          body: `${empty.join(', ')} — tiada sebarang program dalam skop semasa.`,
+          action: 'Buka tawaran atau promosi program bagi teras berkenaan untuk keseimbangan 8 Teras.',
+        });
+      }
+    }
+
+    // 2) Nilai terbaik: kos per peserta terendah (jangkauan tertinggi per ringgit).
+    const withCost = withData.filter((r) => r.costPerParticipant !== null && r.participants >= 30);
+    if (withCost.length >= 2) {
+      const best = withCost.reduce((a, b) => (a.costPerParticipant! < b.costPerParticipant! ? a : b));
+      out.push({
+        tone: 'positive',
+        title: 'Jangkauan Terbaik Setiap Ringgit',
+        body: `Teras ${best.cat}: RM${best.costPerParticipant!.toFixed(2)} seorang peserta (${best.participants.toLocaleString('ms-MY')} peserta, RM${Math.round(best.used).toLocaleString('ms-MY')} dibelanja).`,
+        action: 'Pertimbangkan menambah peruntukan teras ini — jangkauan pelajar paling tinggi bagi setiap ringgit.',
+      });
+    }
+
+    // 3) Mutu kertas kerja: kadar kelulusan terendah (sekurang-kurangnya 2 keputusan).
+    const withRate = withData.filter((r) => r.approvalRate !== null && r.approvedCount + (r.total - r.approvedCount) >= 2 && r.approvalRate < 60);
+    if (withRate.length > 0) {
+      const worst = withRate.reduce((a, b) => (a.approvalRate! < b.approvalRate! ? a : b));
+      out.push({
+        tone: 'warning',
+        title: 'Kadar Kelulusan Rendah',
+        body: `Teras ${worst.cat}: hanya ${worst.approvalRate}% permohonan diluluskan.`,
+        action: 'Adakan bimbingan penyediaan kertas kerja untuk persatuan teras ini.',
+      });
+    }
+
+    // 4) Laporan tertunggak — risiko pematuhan & bukti bakat tidak terjana.
+    if (pendingReports.length > 0) {
+      out.push({
+        tone: 'warning',
+        title: 'Laporan Pascaprogram Tertunggak',
+        body: `${pendingReports.length} program lulus sepenuhnya masih belum mempunyai laporan yang disahkan.`,
+        action: 'Tuntut laporan — tanpa pengesahan, perbelanjaan tidak direkod dan bukti bakat pelajar tidak terjana.',
+      });
+    }
+
+    // 5) Status peruntukan semester terkini.
+    const latest = semesterBudgetData[semesterBudgetData.length - 1];
+    if (latest) {
+      const pct = Math.round((latest.approved / SEMESTER_ALLOCATION) * 100);
+      const baki = SEMESTER_ALLOCATION - latest.approved;
+      out.push({
+        tone: pct >= 90 ? 'warning' : 'info',
+        title: `Peruntukan ${latest.name}: ${pct}% Diluluskan`,
+        body: `Baki RM${Math.round(baki).toLocaleString('ms-MY')} daripada RM${SEMESTER_ALLOCATION.toLocaleString('ms-MY')}.`,
+        action:
+          pct >= 90
+            ? 'Peruntukan hampir habis — saring permohonan baharu dengan lebih ketat.'
+            : 'Baki tidak dibawa ke semester hadapan — rancang penggunaan sebelum semester berakhir.',
+      });
+    }
+
+    return out.slice(0, 5);
+  }, [terasDecision, pendingReports, semesterBudgetData, filters.teras]);
+
   const generateAIInsight = async () => {
     setIsGeneratingAI(true);
     try {
@@ -290,7 +420,43 @@ export default function DataAnalyticsModule() {
 
       {/* Penapis */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
+            Penapis
+            {activeFilterCount > 0 && (
+              <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-xs font-semibold">
+                {activeFilterCount} aktif
+              </span>
+            )}
+          </p>
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => setFilters(DEFAULT_FILTERS)}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+            >
+              Set Semula Penapis
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <FilterSelect
+            label="Teras (Kategori)"
+            value={filters.teras}
+            options={['Semua', ...categories]}
+            onChange={(val) => setFilters({ ...filters, teras: val })}
+          />
+          <FilterSelect
+            label="Sesi Akademik"
+            value={filters.sesi}
+            options={sesiOptions}
+            onChange={(val) => setFilters({ ...filters, sesi: val })}
+          />
+          <FilterSelect
+            label="Semester"
+            value={filters.semester}
+            options={['Semua', '1', '2']}
+            onChange={(val) => setFilters({ ...filters, semester: val })}
+          />
           <FilterSelect
             label="Tahun Pelaksanaan"
             value={filters.tahun}
@@ -298,16 +464,16 @@ export default function DataAnalyticsModule() {
             onChange={(val) => setFilters({ ...filters, tahun: val })}
           />
           <FilterSelect
-            label="Kategori (8 Teras)"
-            value={filters.teras}
-            options={['Semua', ...categories]}
-            onChange={(val) => setFilters({ ...filters, teras: val })}
-          />
-          <FilterSelect
             label="Peringkat Penganjuran"
             value={filters.peringkat}
             options={['Semua', ...LEVELS]}
             onChange={(val) => setFilters({ ...filters, peringkat: val })}
+          />
+          <FilterSelect
+            label="Status Permohonan"
+            value={filters.status}
+            options={statusOptions}
+            onChange={(val) => setFilters({ ...filters, status: val })}
           />
           <FilterSelect
             label="Impak (Kemahiran Insaniah)"
@@ -345,6 +511,45 @@ export default function DataAnalyticsModule() {
         <StatCard icon={Wallet} label="Bajet Diluluskan" value={`RM${Math.round(summary.budgetApproved).toLocaleString('ms-MY')}`} sub="jumlah kelulusan TNC HEPA" iconCls="bg-amber-50 text-amber-600" />
         <StatCard icon={Coins} label="Bajet Digunakan" value={`RM${Math.round(summary.budgetUsed).toLocaleString('ms-MY')}`} sub="perbelanjaan disahkan" iconCls="bg-cyan-50 text-cyan-600" />
       </div>
+
+      {/* Sorotan keputusan — apa yang perlu DIBUAT, bukan sekadar apa yang berlaku */}
+      {decisionInsights.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <h3 className="font-display text-lg font-bold text-slate-900 mb-1">Sorotan Keputusan</h3>
+          <p className="text-xs text-slate-400 mb-4">
+            Dikira daripada data skop semasa — setiap sorotan disertakan cadangan tindakan.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {decisionInsights.map((s) => (
+              <div
+                key={s.title}
+                className={`rounded-xl border p-4 ${
+                  s.tone === 'positive'
+                    ? 'bg-emerald-50/60 border-emerald-100'
+                    : s.tone === 'warning'
+                    ? 'bg-amber-50/60 border-amber-100'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <p className="text-sm font-bold text-slate-900 flex items-start gap-1.5">
+                  {s.tone === 'positive' ? (
+                    <TrendingUp className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : s.tone === 'warning' ? (
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                  )}
+                  {s.title}
+                </p>
+                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">{s.body}</p>
+                <p className="text-xs text-slate-800 mt-2 leading-relaxed">
+                  <span className="font-bold">Tindakan:</span> {s.action}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Donut: taburan teras */}
@@ -424,6 +629,64 @@ export default function DataAnalyticsModule() {
               </BarChart>
             </ResponsiveContainer>
           )}
+        </div>
+      </div>
+
+      {/* Jadual keputusan mengikut teras — pelaburan vs pulangan */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <h3 className="font-display text-lg font-bold text-slate-900 mb-1">
+          Prestasi Mengikut Teras (Data Keputusan)
+        </h3>
+        <p className="text-xs text-slate-400 mb-4">
+          Bandingkan pelaburan dan pulangan setiap teras untuk memutuskan keutamaan peruntukan.
+          Kos seorang peserta = perbelanjaan disahkan ÷ jumlah peserta.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+                <th className="py-2.5 pr-3 font-semibold">Teras</th>
+                <th className="py-2.5 px-2 font-semibold text-right">Program</th>
+                <th className="py-2.5 px-2 font-semibold text-right">Kadar Kelulusan</th>
+                <th className="py-2.5 px-2 font-semibold text-right">Peserta</th>
+                <th className="py-2.5 px-2 font-semibold text-right">Dibelanja (RM)</th>
+                <th className="py-2.5 pl-2 font-semibold text-right">Kos / Peserta (RM)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {terasDecision.rows.map((r) => (
+                <tr key={r.cat} className={`border-b border-slate-100 hover:bg-slate-50/60 transition-colors ${r.total === 0 ? 'opacity-50' : ''}`}>
+                  <td className="py-2.5 pr-3 font-medium text-slate-900">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: catColor(r.cat) }} />
+                      {r.cat}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-2 text-right tabular-nums">{r.total}</td>
+                  <td className="py-2.5 px-2 text-right tabular-nums">
+                    {r.approvalRate === null ? <span className="text-slate-300">—</span> : `${r.approvalRate}%`}
+                  </td>
+                  <td className="py-2.5 px-2 text-right tabular-nums">{r.participants.toLocaleString('ms-MY')}</td>
+                  <td className="py-2.5 px-2 text-right tabular-nums">{r.used > 0 ? Math.round(r.used).toLocaleString('ms-MY') : <span className="text-slate-300">—</span>}</td>
+                  <td className="py-2.5 pl-2 text-right">
+                    {r.costPerParticipant === null ? (
+                      <span className="text-slate-300">—</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 justify-end">
+                        <span className="hidden sm:block w-20 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                          <span
+                            className="block h-full rounded-full bg-blue-500"
+                            style={{ width: `${terasDecision.maxCost ? Math.max(6, (r.costPerParticipant / terasDecision.maxCost) * 100) : 0}%` }}
+                          />
+                        </span>
+                        <span className="tabular-nums font-semibold text-slate-900">{r.costPerParticipant.toFixed(2)}</span>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
