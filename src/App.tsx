@@ -374,7 +374,7 @@ export default function App() {
         eKesatuan.push({ id: 'reports', label: 'Arkib Laporan', icon: FileBarChart });
         eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         bakat.push({ id: 'bakat', label: 'Radar Bakat', icon: Radar });
-        bakat.push({ id: 'import', label: 'Import Excel', icon: FileSpreadsheet });
+        tetapan.push({ id: 'import', label: 'Import Data (Excel)', icon: FileSpreadsheet });
         tetapan.push({ id: 'settings', label: 'Tetapan Sistem', icon: Settings });
         break;
       case 'ydp':

@@ -98,11 +98,12 @@ export default function ExcelImportModule() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-indigo-600" /> Import Excel
+            <FileSpreadsheet className="w-6 h-6 text-blue-600" /> Import Data (Excel)
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Muat naik senarai program lepas — sistem akan mencipta rekod pelajar, permohonan,
-            laporan disahkan dan bukti bakat secara automatik.
+            Masukkan rekod program e-Kesatuan yang lepas secara pukal tanpa kemasukan manual —
+            setiap baris mencipta rekod pelajar, permohonan (Lulus Sepenuhnya) dan laporan
+            (Disahkan) dalam sistem, dan bukti bakat pelajar dijana secara automatik.
           </p>
         </div>
         <button
