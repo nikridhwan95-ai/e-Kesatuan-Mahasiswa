@@ -159,11 +159,13 @@ drop policy if exists users_select on public.users;
 create policy users_select on public.users for select to authenticated
   using (uid = (select auth.uid())::text or public.is_management());
 
+-- Pengguna mencipta profil sendiri (peranan pelajar), ATAU admin mencipta
+-- rekod pelajar bagi pihak pelajar (cth. melalui Import Excel).
 drop policy if exists users_insert on public.users;
 create policy users_insert on public.users for insert to authenticated
   with check (
-    uid = (select auth.uid())::text
-    and (role = 'student' or public.is_admin())
+    (uid = (select auth.uid())::text and (role = 'student' or public.is_admin()))
+    or (public.is_admin() and role = 'student')
   );
 
 -- Pengguna boleh kemaskini profil sendiri TANPA menukar peranan sendiri;
@@ -181,9 +183,11 @@ drop policy if exists applications_select on public.applications;
 create policy applications_select on public.applications for select to authenticated
   using ("applicantId" = (select auth.uid())::text or public.is_management());
 
+-- Pelajar memohon untuk diri sendiri, ATAU admin mengimport program lepas
+-- bagi pihak pelajar (Import Excel).
 drop policy if exists applications_insert on public.applications;
 create policy applications_insert on public.applications for insert to authenticated
-  with check ("applicantId" = (select auth.uid())::text);
+  with check ("applicantId" = (select auth.uid())::text or public.is_admin());
 
 drop policy if exists applications_update on public.applications;
 create policy applications_update on public.applications for update to authenticated

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X, Radar } from 'lucide-react';
+import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X, Radar, FileSpreadsheet } from 'lucide-react';
 import ApprovalWorkflow from './components/approval/ApprovalWorkflow';
 import AnalyticsDashboard from './components/dashboard/AnalyticsDashboard';
 import ApplicationModule from './components/application/ApplicationModule';
@@ -20,11 +20,12 @@ import LetterSettingsModule from './components/settings/LetterSettingsModule';
 import DataAnalyticsModule from './components/admin/DataAnalyticsModule';
 import BakatProfile from './components/bakat/BakatProfile';
 import TalentSearchModule from './components/bakat/TalentSearchModule';
+import ExcelImportModule from './components/import/ExcelImportModule';
 import { Application, UserRole, User as UserType } from './types';
 import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_USERNAME, PORTAL_ADMIN_EMAIL } from './supabase';
 import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/dataService';
 
-type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat';
+type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat' | 'import';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -361,6 +362,7 @@ export default function App() {
       case 'admin':
         items.push({ id: 'analytics', label: 'Analitik Data', icon: BarChart2 });
         items.push({ id: 'bakat', label: 'Radar Bakat', icon: Radar });
+        items.push({ id: 'import', label: 'Import Excel', icon: FileSpreadsheet });
         items.push({ id: 'applications', label: 'Semua Permohonan', icon: FileText });
         items.push({ id: 'approvals', label: 'Pengurusan Kelulusan', icon: CheckSquare });
         items.push({ id: 'presentations', label: 'Jadual Semakan', icon: Clock });
@@ -411,6 +413,15 @@ export default function App() {
           );
         }
         return <TalentSearchModule />;
+      case 'import':
+        return currentUserRole === 'admin' ? (
+          <ExcelImportModule />
+        ) : (
+          <div className="bg-red-50 text-red-700 p-6 rounded-2xl border border-red-200 text-center">
+            <h3 className="font-bold text-lg mb-2">Akses Ditolak</h3>
+            <p>Hanya System Admin yang mempunyai akses ke halaman ini.</p>
+          </div>
+        );
       case 'applications':
         return <ApplicationModule currentUserRole={currentUserRole} applicantId={user.uid} />;
       case 'approvals':
@@ -732,6 +743,7 @@ export default function App() {
                 {activeTab === 'dashboard' && 'Papan Pemuka Utama'}
                 {activeTab === 'profile' && 'Profil Pelajar'}
                 {activeTab === 'bakat' && 'Modul Bakat'}
+                {activeTab === 'import' && 'Import Data'}
                 {activeTab === 'applications' && 'Modul Permohonan'}
                 {activeTab === 'approvals' && 'Modul Kelulusan'}
                 {activeTab === 'reports' && 'Modul Pelaporan'}
