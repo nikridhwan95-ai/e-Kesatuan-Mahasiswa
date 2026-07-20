@@ -144,7 +144,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
       await updateReportStatus(selectedReportItem.report.id, status, reviewerComment, additionalData);
 
       // Integrasi Modul Bakat: laporan yang disahkan melengkapkan kitaran
-      // program → jana evidens bakat pelajar secara automatik (idempotent).
+      // program → jana bukti bakat pelajar secara automatik (idempotent).
       if (status === 'Disahkan') {
         try {
           const created = await syncEvidenceForApplication(selectedReportItem.app, {
@@ -154,13 +154,13 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
             reviewedAt: new Date().toISOString(),
           });
           if (created > 0) {
-            showNotification(`Laporan Disahkan! ${created} evidens bakat dijana untuk profil pelajar.`, 'success');
+            showNotification(`Laporan Disahkan! ${created} bukti bakat dijana untuk profil pelajar.`, 'success');
           } else {
             showNotification('Laporan Disahkan!', 'success');
           }
         } catch (evidenceError) {
           console.error('Error generating talent evidence:', evidenceError);
-          showNotification('Laporan Disahkan! (Evidens bakat gagal dijana — guna Segerakkan Evidens di Radar Bakat.)', 'success');
+          showNotification('Laporan Disahkan! (Bukti bakat gagal dijana — guna Jana Bukti di Radar Bakat.)', 'success');
         }
       } else {
         showNotification(`Laporan ${status}!`, 'success');

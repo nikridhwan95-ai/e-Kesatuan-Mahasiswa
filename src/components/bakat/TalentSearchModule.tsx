@@ -29,7 +29,7 @@ import { Avatar, BandChip, COMPETENCY_ICON, ProgressRing, RankBadge, StatCard } 
 import BakatProfile from './BakatProfile';
 
 // Radar Bakat (Admin/HEP) — papan pemuka kecerdasan bakat merentas pelajar.
-// SEMUA angka diterbitkan daripada evidens sebenar pada masa nyata.
+// SEMUA angka diterbitkan daripada bukti sebenar pada masa nyata.
 export default function TalentSearchModule() {
   const [users, setUsers] = useState<User[]>([]);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
@@ -62,14 +62,14 @@ export default function TalentSearchModule() {
       const result = await syncAllEvidence();
       setNotification(
         result.created > 0
-          ? `Penyegerakan selesai: ${result.created} evidens baharu dijana daripada ${result.programmes} program.`
-          : 'Penyegerakan selesai: semua evidens sudah terkini.'
+          ? `Penjanaan bukti selesai: ${result.created} bukti baharu dijana daripada ${result.programmes} program.`
+          : 'Penjanaan bukti selesai: semua bukti sudah terkini.'
       );
       setTimeout(() => setNotification(null), 5000);
       await fetchData();
     } catch (error) {
       console.error('Error syncing evidence:', error);
-      setNotification('Gagal menyegerakkan evidens. Sila cuba lagi.');
+      setNotification('Gagal menjana bukti. Sila cuba lagi.');
       setTimeout(() => setNotification(null), 5000);
     } finally {
       setSyncing(false);
@@ -105,7 +105,7 @@ export default function TalentSearchModule() {
       .map((b) => ({ name: BAND_META[b].label, value: stats.distribution[b], hex: BAND_META[b].hex }))
       .filter((s) => s.value > 0);
     if (stats.withoutEvidenceCount > 0) {
-      slices.push({ name: 'Belum ada evidens', value: stats.withoutEvidenceCount, hex: '#cbd5e1' });
+      slices.push({ name: 'Belum ada bukti', value: stats.withoutEvidenceCount, hex: '#cbd5e1' });
     }
     return slices;
   }, [stats]);
@@ -142,16 +142,17 @@ export default function TalentSearchModule() {
             <Sparkles className="w-6 h-6 text-indigo-600" /> Radar Bakat
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Kecerdasan bakat pelajar — setiap angka diterbitkan daripada evidens program e-Kesatuan yang disahkan.
+            Kecerdasan bakat pelajar — setiap angka diterbitkan daripada bukti program e-Kesatuan yang disahkan.
           </p>
         </div>
         <button
           onClick={handleSync}
           disabled={syncing}
+          title="Imbas semua program yang lulus sepenuhnya dan laporannya disahkan, lalu jana rekod bukti bakat yang belum wujud (cth. program lama). Selamat ditekan berulang kali."
           className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-600/20 disabled:opacity-50"
         >
           {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Segerakkan Evidens
+          Jana Bukti
         </button>
       </div>
 
@@ -170,7 +171,7 @@ export default function TalentSearchModule() {
           {/* Kad statistik */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
             <StatCard icon={Users} label="Pelajar Dipantau" value={String(totalStudents)} sub={`${stats.withEvidenceCount} sudah berprofil`} />
-            <StatCard icon={CheckCircle2} label="Evidens Diluluskan" value={String(stats.approvedEvidenceCount)} sub={`daripada ${stats.programmeCount} program disahkan`} iconCls="bg-emerald-50 text-emerald-600" />
+            <StatCard icon={CheckCircle2} label="Bukti Diluluskan" value={String(stats.approvedEvidenceCount)} sub={`daripada ${stats.programmeCount} program disahkan`} iconCls="bg-emerald-50 text-emerald-600" />
             <StatCard icon={TrendingUp} label="Potensi Tinggi" value={String(stats.highPotentialCount)} sub={`skor keseluruhan ≥ ${HIGH_POTENTIAL_THRESHOLD}`} iconCls="bg-blue-50 text-blue-600" />
             <StatCard icon={Gauge} label="Purata Skor Keseluruhan" value={stats.avgOverall ? String(stats.avgOverall) : '—'} sub="purata 3 kekuatan teratas" iconCls="bg-amber-50 text-amber-600" />
             <StatCard icon={FileCheck2} label="Program Disahkan" value={String(stats.programmeCount)} sub="lulus sepenuhnya dan laporan disahkan" iconCls="bg-violet-50 text-violet-600" />
@@ -183,7 +184,7 @@ export default function TalentSearchModule() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <h3 className="font-display text-lg font-bold text-slate-900">Kompetensi</h3>
-                  <span className="text-xs text-slate-400">(cincin = purata skor pelajar yang mempunyai evidens)</span>
+                  <span className="text-xs text-slate-400">(cincin = purata skor pelajar yang mempunyai bukti)</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {stats.competencyStats.map((c) => {
@@ -239,7 +240,7 @@ export default function TalentSearchModule() {
                         <th className="py-2 pr-3 font-semibold">Pelajar</th>
                         <th className="py-2 pr-3 font-semibold">Skor Keseluruhan</th>
                         <th className="py-2 pr-3 font-semibold">Kekuatan Utama</th>
-                        <th className="py-2 font-semibold text-right">Evidens</th>
+                        <th className="py-2 font-semibold text-right">Bukti</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -270,7 +271,7 @@ export default function TalentSearchModule() {
                                 <BandChip score={row.overall} />
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-400 italic">Tiada evidens lagi</span>
+                              <span className="text-xs text-slate-400 italic">Tiada bukti lagi</span>
                             )}
                           </td>
                           <td className="py-3 pr-3">
@@ -304,10 +305,10 @@ export default function TalentSearchModule() {
               {/* Sorotan */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                 <h3 className="font-display text-lg font-bold text-slate-900 mb-1">Sorotan Bakat</h3>
-                <p className="text-xs text-slate-400 mb-4">Dikira daripada evidens semasa — bukan janaan AI.</p>
+                <p className="text-xs text-slate-400 mb-4">Dikira daripada bukti semasa — bukan janaan AI.</p>
                 <div className="space-y-3">
                   {sorotan.length === 0 && (
-                    <p className="text-sm text-slate-500 italic">Tiada sorotan lagi — belum ada evidens.</p>
+                    <p className="text-sm text-slate-500 italic">Tiada sorotan lagi — belum ada bukti.</p>
                   )}
                   {sorotan.map((s) => (
                     <div

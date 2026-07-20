@@ -395,7 +395,7 @@ export default function App() {
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Profil Bakat</h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Radar 16 kompetensi anda — setiap skor diterbitkan daripada evidens program yang disahkan.
+                  Radar 16 kompetensi anda — setiap skor diterbitkan daripada bukti program yang disahkan.
                 </p>
               </div>
               <BakatProfile

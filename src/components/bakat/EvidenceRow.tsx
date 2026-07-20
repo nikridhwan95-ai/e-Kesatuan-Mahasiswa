@@ -82,7 +82,7 @@ export default function EvidenceRow({
             <Factor label="Peranan" value={`× ${contribution.roleMult.toFixed(2)}`} />
             <Factor label="Peringkat" value={`× ${contribution.levelMult.toFixed(2)}`} />
             <Factor label="Kehadiran" value={`× ${contribution.attendance.toFixed(2)}`} />
-            <Factor label="Susutan Masa" value={`× ${contribution.decay.toFixed(2)}`} />
+            <Factor label="Faktor Masa" value={`× ${contribution.decay.toFixed(2)}`} />
             <Factor label="Sumbangan" value={`= ${contribution.effective.toFixed(1)}`} strong />
           </div>
         </div>

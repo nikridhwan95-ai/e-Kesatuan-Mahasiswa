@@ -7,12 +7,12 @@ Portal bersepadu yang menggabungkan dua modul yang saling berkait:
 2. **Modul Bakat (Talent Hub)** — kecerdasan bakat pelajar berasaskan prinsip
    *evidence-first* (SDD TalentOS v2.0): skor kompetensi TIDAK PERNAH disimpan
    sebagai kebenaran (IRON RULE §4.4); setiap skor diterbitkan semula oleh enjin
-   deterministik (`src/bakat/domain/scoring.ts`) daripada rekod evidens yang
+   deterministik (`src/bakat/domain/scoring.ts`) daripada rekod bukti yang
    tidak boleh diubah.
 
 **Titik integrasi:** apabila satu permohonan mencapai status `Lulus Sepenuhnya`
 DAN laporan pascaprogramnya `Disahkan` oleh Unit Pelaporan, sistem menjana
-rekod evidens bakat secara automatik (`src/bakat/derive.ts`):
+rekod bukti bakat secara automatik (`src/bakat/derive.ts`):
 
 - Jawatan pemohon (Pengarah/Setiausaha) → evidence `committee_role` untuk
   Kepimpinan (LEA), Pengurusan Projek (PRJ) dan Literasi Kewangan (FIN, jika

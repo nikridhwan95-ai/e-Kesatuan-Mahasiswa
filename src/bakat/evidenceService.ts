@@ -2,7 +2,7 @@
 //
 // Prinsip storan (IRON RULE §4.4): HANYA evidence disimpan — skor kompetensi
 // TIDAK PERNAH ditulis ke pangkalan data. Skor sentiasa dikira semula oleh
-// enjin dalam src/bakat/domain/scoring.ts daripada evidens 'approved'.
+// enjin dalam src/bakat/domain/scoring.ts daripada bukti 'approved'.
 
 import { supabase } from '../supabase';
 import { Application, Report } from '../types';
