@@ -66,13 +66,14 @@ export default function BakatProfile({
     [studentId, evidence]
   );
 
+  // Radar memaparkan HANYA kompetensi yang berskor — bakat yang ada.
   const radarData: RadarDatum[] = useMemo(
     () =>
       TAXONOMY.map((c) => ({
         code: c.code,
         label: c.name_ms,
         score: scores.find((s) => s.competency_id === c.code)?.score ?? 0,
-      })),
+      })).filter((d) => d.score > 0),
     [scores]
   );
 
@@ -105,6 +106,13 @@ export default function BakatProfile({
 
   const approved = useMemo(() => evidence.filter((e) => e.status === 'approved'), [evidence]);
   const overall = useMemo(() => overallScore(scores), [scores]);
+
+  // Mulakan perincian pada kekuatan teratas (bukan paksi tanpa skor).
+  useEffect(() => {
+    if (!loading && strengths[0] && !radarData.some((d) => d.code === active)) {
+      setActive(strengths[0].competency_id);
+    }
+  }, [loading, strengths, radarData, active]);
   const programmeCount = useMemo(() => new Set(approved.map((e) => e.source_id)).size, [approved]);
 
   // Aktiviti terkini — evidence dikumpul mengikut program (source_id).
@@ -205,8 +213,8 @@ export default function BakatProfile({
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 items-start">
             {/* Radar */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <h3 className="font-display text-lg font-bold text-slate-900">Radar Bakat (16 Kompetensi)</h3>
-              <p className="text-xs text-slate-500 mb-2">Klik mana-mana paksi untuk melihat bukti di sebaliknya.</p>
+              <h3 className="font-display text-lg font-bold text-slate-900">Radar Bakat</h3>
+              <p className="text-xs text-slate-500 mb-2">Bakat yang terbukti sahaja — klik mana-mana paksi untuk melihat bukti di sebaliknya.</p>
               <TalentRadar
                 data={radarData}
                 active={active}
