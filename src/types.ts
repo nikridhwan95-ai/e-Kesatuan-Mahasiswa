@@ -11,6 +11,9 @@ export interface User {
   phoneNumber?: string;
   college?: string;
   faculty?: string;
+  studyYear?: string; // tahun pengajian (cth "3")
+  programme?: string; // program pengajian
+  address?: string;
   positions?: { organization: string; role: string; year: string }[];
   createdAt: string;
 }
