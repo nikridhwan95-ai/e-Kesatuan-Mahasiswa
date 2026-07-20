@@ -1,20 +1,43 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Portal Aktiviti Pelajar UPM
 
-# Run and deploy your AI Studio app
+Portal bersepadu **e-Kesatuan Mahasiswa** (pengurusan permohonan aktiviti,
+aliran kelulusan, laporan pascaprogram) + **Modul Bakat / Radar Bakat**
+(kecerdasan bakat evidence-first). Dibina dengan Vite + React + Tailwind,
+disokong oleh **Supabase** (Auth + Postgres + Storage).
 
-This contains everything you need to run your app locally.
+## Persediaan Supabase (sekali sahaja)
 
-View your app in AI Studio: https://ai.studio/apps/47d12304-74bc-4f22-b7cf-6ee9dc498b28
+1. **Skema pangkalan data** — buka Supabase Dashboard → SQL Editor,
+   tampal kandungan `supabase/schema.sql` dan jalankan. Ia mencipta jadual
+   (`users`, `applications`, `reports`, `presentation_sessions`, `settings`,
+   `evidence`), polisi RLS, dan baldi Storage `uploads`. Selamat dijalankan semula.
+2. **Akaun log masuk portal** — portal menggunakan log masuk nama pengguna +
+   kata laluan (nama pengguna `ekmupm`). Di sebalik tabir ia adalah akaun
+   e-mel Supabase `ekmupm@portal-bhep.upm.edu.my`. Pilih SATU cara:
+   - *Automatik:* Dashboard → Authentication → Sign In / Providers → Email →
+     matikan **Confirm email**. Log masuk pertama akan mencipta akaun sendiri.
+   - *Manual:* Dashboard → Authentication → Users → **Add user** dengan e-mel
+     `ekmupm@portal-bhep.upm.edu.my`, kata laluan portal, dan tandakan
+     **Auto Confirm User**.
 
-## Run Locally
+Konfigurasi klien berada dalam `src/supabase.ts` (boleh diatasi dengan
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` dalam `.env.local`).
 
-**Prerequisites:**  Node.js
+## Jalankan Secara Tempatan
 
+**Prasyarat:** Node.js
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. Pasang kebergantungan: `npm install`
+2. (Pilihan, untuk ringkasan AI) Tetapkan `GEMINI_API_KEY` dalam `.env.local`
+3. Jalankan aplikasi: `npm run dev`
+
+## Semakan & Binaan
+
+- `npm run lint` — semakan jenis TypeScript
+- `npm run check:bakat` — 34 semakan sifat enjin skor & derivation Modul Bakat
+- `npm run build` — binaan pengeluaran
+
+## Dokumentasi
+
+- `docs/SCHEMA.md` — seni bina, skema data, dan titik integrasi Modul Bakat
+- `supabase/schema.sql` — sumber kebenaran skema Postgres + RLS

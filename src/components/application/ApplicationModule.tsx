@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, FileText, Upload, Calendar, DollarSign, Search, ArrowLeft, CheckCircle, Clock, AlertTriangle, XCircle, AlertCircle, DoorOpen, Link as LinkIcon, ArrowRight } from 'lucide-react';
 import { UserRole, ApplicationStatus, Application, User } from '../../types';
-import { getApplications, createApplication, updateApplicationStatus, deleteApplication, uploadFile, getCategories, updateApplication, getUsers, getPresentationSessions, getUserProfile } from '../../services/firestoreService';
+import { getApplications, createApplication, updateApplicationStatus, deleteApplication, uploadFile, getCategories, updateApplication, getUsers, getPresentationSessions, getUserProfile } from '../../services/dataService';
 import { PresentationSession } from '../../types';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
 
@@ -195,7 +195,7 @@ export default function ApplicationModule({ currentUserRole, applicantId }: Appl
       onConfirm: async () => {
         try {
           await updateApplicationStatus(appId, status, comment);
-          showNotification(`Status berjaya dikemaskini kepada ${status}.`, 'success');
+          showNotification(`Status berjaya dikemas kini kepada ${status}.`, 'success');
           fetchApplications();
           if (selectedApp?.id === appId) {
             setSelectedApp({ ...selectedApp, status, reviewerComment: comment });
@@ -314,7 +314,7 @@ export default function ApplicationModule({ currentUserRole, applicantId }: Appl
 
       if (editingApp) {
         await updateApplication(editingApp.id, appData as any);
-        showNotification(`Permohonan berjaya ${isDraft ? 'disimpan sebagai draf' : 'dikemaskini'}!`, 'success');
+        showNotification(`Permohonan berjaya ${isDraft ? 'disimpan sebagai draf' : 'dikemas kini'}!`, 'success');
       } else {
         const newApp: Omit<Application, 'id' | 'createdAt' | 'updatedAt'> = {
           applicantId: applicantId,
@@ -539,7 +539,7 @@ export default function ApplicationModule({ currentUserRole, applicantId }: Appl
                   </div>
                   {selectedApp.jointlyOrganizedWith && (
                     <div className="col-span-2">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Bersama Anjuran</p>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Anjuran Bersama</p>
                       <p className="text-slate-900 font-medium">{selectedApp.jointlyOrganizedWith}</p>
                     </div>
                   )}
@@ -870,7 +870,7 @@ export default function ApplicationModule({ currentUserRole, applicantId }: Appl
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 bg-slate-50/50">
             <h3 className="text-lg font-bold text-slate-900 font-display">
-              {isAmendment ? 'Pinda Program' : (editingApp ? 'Kemaskini Permohonan' : 'Borang Permohonan Baru')}
+              {isAmendment ? 'Pinda Program' : (editingApp ? 'Kemas Kini Permohonan' : 'Borang Permohonan Baru')}
             </h3>
             <p className="text-sm text-slate-500 mt-1">Sila lengkapkan maklumat dan muat naik kertas kerja.</p>
           </div>
@@ -922,7 +922,7 @@ export default function ApplicationModule({ currentUserRole, applicantId }: Appl
                 <input type="date" name="startDate" defaultValue={editingApp?.startDate || (editingApp as any)?.date} className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow" required />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Bersama Anjuran</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Anjuran Bersama</label>
                 <input type="text" name="jointlyOrganizedWith" defaultValue={editingApp?.jointlyOrganizedWith} className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow" placeholder="Contoh: Kelab Debat (Jika ada)" />
               </div>
               <div>
@@ -1082,7 +1082,7 @@ export default function ApplicationModule({ currentUserRole, applicantId }: Appl
                     Menghantar...
                   </>
                 ) : (
-                  isAmendment ? 'Hantar Pindaan' : (editingApp ? 'Kemaskini Permohonan' : 'Hantar Permohonan')
+                  isAmendment ? 'Hantar Pindaan' : (editingApp ? 'Kemas Kini Permohonan' : 'Hantar Permohonan')
                 )}
               </button>
             </div>
@@ -1096,7 +1096,7 @@ export default function ApplicationModule({ currentUserRole, applicantId }: Appl
             <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
-              placeholder="Cari permohonan, nama pelajar, atau ID..." 
+              placeholder="Cari permohonan, nama pelajar atau ID..." 
               className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             />
           </div>
@@ -1255,7 +1255,7 @@ export default function ApplicationModule({ currentUserRole, applicantId }: Appl
                           <button 
                             onClick={() => handleEditApplication(app)}
                             className="text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1.5 transition-colors"
-                            title="Kemaskini Permohonan"
+                            title="Kemas Kini Permohonan"
                           >
                             <FileText className="w-4 h-4" /> Edit
                           </button>

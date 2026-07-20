@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X, Radar } from 'lucide-react';
 import ApprovalWorkflow from './components/approval/ApprovalWorkflow';
 import AnalyticsDashboard from './components/dashboard/AnalyticsDashboard';
 import ApplicationModule from './components/application/ApplicationModule';
@@ -18,20 +18,24 @@ import OrganizationSettings from './components/admin/OrganizationSettings';
 import FacultyCollegeSettings from './components/admin/FacultyCollegeSettings';
 import LetterSettingsModule from './components/settings/LetterSettingsModule';
 import DataAnalyticsModule from './components/admin/DataAnalyticsModule';
+import BakatProfile from './components/bakat/BakatProfile';
+import TalentSearchModule from './components/bakat/TalentSearchModule';
 import { Application, UserRole, User as UserType } from './types';
-import { db, auth } from './firebase';
-import { doc, getDocFromServer, onSnapshot } from 'firebase/firestore';
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/firestoreService';
+import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_USERNAME, PORTAL_ADMIN_EMAIL } from './supabase';
+import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/dataService';
 
-type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics';
+type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('student');
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const [userData, setUserData] = useState<UserType | null>(null);
   const [allUsers, setAllUsers] = useState<UserType[]>([]);
   const [newRoleEmail, setNewRoleEmail] = useState('');
@@ -46,52 +50,72 @@ export default function App() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const MASTER_ADMIN_EMAIL = 'nikridhwan95@gmail.com';
+  // Akaun portal kongsi (ekmupm) + akaun pemilik asal — kedua-duanya master admin.
+  const MASTER_ADMIN_EMAILS = [PORTAL_ADMIN_EMAIL, 'nikridhwan95@gmail.com'];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        // Listen to user profile changes in real-time
-        const unsubProfile = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
-          const isMasterAdmin = currentUser.email === MASTER_ADMIN_EMAIL;
-          
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserType;
-            
-            // Force master admin role if not already set
-            if (isMasterAdmin && data.role !== 'admin') {
-              await updateUserProfile(currentUser.uid, { role: 'admin' });
-              data.role = 'admin';
-            }
-            
-            setUserData(data);
-            setCurrentUserRole(data.role);
-          } else {
-            // Create default profile if not exists
-            const emailName = currentUser.email ? currentUser.email.split('@')[0].replace(/\./g, ' ').replace(/\d+/g, '').trim() : 'New User';
-            const formattedName = emailName.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-            
-            const newProfile: Partial<UserType> = {
-              email: currentUser.email || '',
-              name: formattedName || currentUser.displayName || 'New User',
-              role: isMasterAdmin ? 'admin' : 'student',
-              uid: currentUser.uid,
-              createdAt: new Date().toISOString()
-            };
-            await createUserProfile(currentUser.uid, newProfile);
-          }
-          setLoading(false);
-        });
-        return () => unsubProfile();
-      } else {
+    // Sesi tempatan semasa (jika ada), kemudian dengar perubahan auth Supabase.
+    supabase.auth.getSession().then(({ data }) => {
+      const appUser = toAppUser(data.session?.user);
+      setUser(appUser);
+      if (!appUser) setLoading(false);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const appUser = toAppUser(session?.user);
+      setUser(appUser);
+      if (!appUser) {
         setUserData(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => sub.subscription.unsubscribe();
   }, []);
+
+  // Muat / cipta profil pengguna dalam jadual 'users' selepas log masuk.
+  const loadProfile = async (currentUser: AppUser) => {
+    const isMasterAdmin = MASTER_ADMIN_EMAILS.includes(currentUser.email);
+    try {
+      let data = await getUserProfile(currentUser.uid);
+
+      if (!data) {
+        const emailName = currentUser.email ? currentUser.email.split('@')[0].replace(/\./g, ' ').replace(/\d+/g, '').trim() : 'New User';
+        const formattedName = emailName.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+        const newProfile: Partial<UserType> = {
+          email: currentUser.email || '',
+          name: currentUser.email === PORTAL_ADMIN_EMAIL
+            ? 'Urus Setia BHEP UPM'
+            : currentUser.displayName || formattedName || 'New User',
+          role: isMasterAdmin ? 'admin' : 'student',
+          uid: currentUser.uid,
+          createdAt: new Date().toISOString()
+        };
+        await createUserProfile(currentUser.uid, newProfile);
+        data = await getUserProfile(currentUser.uid);
+      }
+
+      if (data) {
+        // Paksa peranan master admin jika belum ditetapkan
+        if (isMasterAdmin && data.role !== 'admin') {
+          await updateUserProfile(currentUser.uid, { role: 'admin' });
+          data = { ...data, role: 'admin' as UserRole };
+        }
+        setUserData(data);
+        setCurrentUserRole(data.role);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      showNotification('Gagal memuatkan profil. Pastikan supabase/schema.sql telah dijalankan.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) loadProfile(user);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (currentUserRole === 'admin') {
@@ -108,24 +132,51 @@ export default function App() {
     }
   };
 
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginUsername || !loginPassword) return;
+    setLoggingIn(true);
+    setLoginError('');
+
+    const email = usernameToEmail(loginUsername);
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      console.error("Login failed:", error);
-      if (error.code === 'auth/unauthorized-domain') {
-        const domain = window.location.hostname;
-        showNotification(`Ralat Domain: Sila tambah domain ini ke dalam Firebase Console > Authentication > Settings > Authorized Domains:\n\n${domain}`, 'error');
-      } else {
-        showNotification(`Login failed: ${error.message}`, 'error');
+      let { error } = await supabase.auth.signInWithPassword({ email, password: loginPassword });
+
+      // Akaun portal belum wujud di Supabase? Sediakan secara automatik pada
+      // log masuk pertama — hanya untuk nama pengguna portal yang sah.
+      if (error && loginUsername.trim().toLowerCase() === PORTAL_USERNAME) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password: loginPassword,
+        });
+        if (!signUpError) {
+          if (signUpData.session) {
+            error = null; // sesi terus aktif (pengesahan e-mel dimatikan)
+          } else {
+            // Pengesahan e-mel masih aktif — akaun perlu dicipta manual.
+            setLoginError(
+              'Akaun portal belum diaktifkan. Sila matikan "Confirm email" dalam Supabase Dashboard → Authentication → Sign In / Providers → Email, atau cipta pengguna ' + email + ' secara manual di Authentication → Users (tandakan Auto Confirm).'
+            );
+            setLoggingIn(false);
+            return;
+          }
+        }
       }
+
+      if (error) {
+        setLoginError('Nama pengguna atau kata laluan salah.');
+      }
+    } catch (err) {
+      console.error('Login failed:', err);
+      setLoginError('Log masuk gagal. Sila cuba lagi.');
+    } finally {
+      setLoggingIn(false);
     }
   };
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -142,7 +193,7 @@ export default function App() {
       const targetUser = await getUserByEmail(newRoleEmail);
       if (targetUser) {
         await updateUserProfile(targetUser.uid, { role: newRoleValue });
-        showNotification(`Peranan berjaya dikemaskini untuk ${newRoleEmail}`, 'success');
+        showNotification(`Peranan berjaya dikemas kini untuk ${newRoleEmail}`, 'success');
         setNewRoleEmail('');
         fetchUsers(); // Refresh list
       } else {
@@ -159,7 +210,7 @@ export default function App() {
   const [userToRemove, setUserToRemove] = useState<{uid: string, email: string} | null>(null);
 
   const handleRemoveRole = async (uid: string, email: string) => {
-    if (email === MASTER_ADMIN_EMAIL) {
+    if (MASTER_ADMIN_EMAILS.includes(email)) {
       showNotification('Peranan Master Admin tidak boleh dibuang.', 'error');
       return;
     }
@@ -197,8 +248,8 @@ export default function App() {
     if (user && userData) {
       try {
         await updateUserProfile(user.uid, { role: newRole });
-        showNotification(`Peranan anda telah dikemaskini kepada ${newRole}.`, 'success');
-        // State update will happen via onSnapshot
+        showNotification(`Peranan anda telah dikemas kini kepada ${newRole}.`, 'success');
+        await loadProfile(user);
       } catch (error) {
         console.error("Failed to update role:", error);
         showNotification("Failed to update role. Check console for details.", 'error');
@@ -220,15 +271,60 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display">e-Kesatuan Mahasiswa UPM</h1>
-          <p className="text-slate-500 mb-8 font-medium">(Portal Pengurusan Aktiviti Pelajar)</p>
-          <button 
-            onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
-          >
-            <LogIn className="w-5 h-5" /> Log Masuk dengan Google
-          </button>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display">Portal Aktiviti Pelajar UPM</h1>
+          <p className="text-slate-500 mb-2 font-medium">e-Kesatuan Mahasiswa · Radar Bakat</p>
+          <p className="text-xs text-slate-400 mb-8">Pengurusan aktiviti pelajar dan kecerdasan bakat dalam satu portal bersepadu</p>
+
+          <form onSubmit={handleLogin} className="space-y-4 text-left">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Nama Pengguna</label>
+              <input
+                type="text"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                placeholder="Nama pengguna"
+                autoComplete="username"
+                className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Kata Laluan</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Kata laluan"
+                autoComplete="current-password"
+                className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+                required
+              />
+            </div>
+
+            {loginError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
+                {loginError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loggingIn || !loginUsername || !loginPassword}
+              className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
+            >
+              <LogIn className="w-5 h-5" /> {loggingIn ? 'Sedang Log Masuk...' : 'Log Masuk'}
+            </button>
+          </form>
         </div>
+        {notification && (
+          <div className={`fixed top-4 right-4 z-[100] max-w-md px-6 py-4 rounded-2xl shadow-2xl border text-sm font-bold ${
+            notification.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            {notification.message}
+          </div>
+        )}
       </div>
     );
   }
@@ -241,8 +337,9 @@ export default function App() {
     switch (currentUserRole) {
       case 'student':
         items.push({ id: 'profile', label: 'Profil Saya', icon: User });
+        items.push({ id: 'bakat', label: 'Profil Bakat', icon: Radar });
         items.push({ id: 'applications', label: 'Permohonan Saya', icon: FileText });
-        items.push({ id: 'reports', label: 'Laporan Pasca Program', icon: FileBarChart });
+        items.push({ id: 'reports', label: 'Laporan Pascaprogram', icon: FileBarChart });
         break;
       case 'unit_semakan':
         items.push({ id: 'approvals', label: 'Semakan Kertas Kerja', icon: CheckSquare });
@@ -263,6 +360,7 @@ export default function App() {
         break;
       case 'admin':
         items.push({ id: 'analytics', label: 'Analitik Data', icon: BarChart2 });
+        items.push({ id: 'bakat', label: 'Radar Bakat', icon: Radar });
         items.push({ id: 'applications', label: 'Semua Permohonan', icon: FileText });
         items.push({ id: 'approvals', label: 'Pengurusan Kelulusan', icon: CheckSquare });
         items.push({ id: 'presentations', label: 'Jadual Semakan', icon: Clock });
@@ -290,6 +388,29 @@ export default function App() {
         return <AnalyticsDashboard currentUserRole={currentUserRole} />;
       case 'profile':
         return <StudentProfile userId={user.uid} />;
+      case 'bakat':
+        if (currentUserRole === 'student') {
+          return (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Profil Bakat</h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Radar 16 kompetensi anda — setiap skor diterbitkan daripada bukti program yang disahkan.
+                </p>
+              </div>
+              <BakatProfile
+                studentId={user.uid}
+                studentName={userData?.displayName || userData?.name || user?.displayName || undefined}
+                matricNumber={userData?.matricNumber}
+                faculty={userData?.faculty}
+                college={userData?.college}
+                showHeader
+                canDispute
+              />
+            </div>
+          );
+        }
+        return <TalentSearchModule />;
       case 'applications':
         return <ApplicationModule currentUserRole={currentUserRole} applicantId={user.uid} />;
       case 'approvals':
@@ -429,7 +550,7 @@ export default function App() {
                                   <p className="font-medium text-slate-900">{adminUser.email}</p>
                                   <p className="text-xs text-slate-500 capitalize">{adminUser.role === 'admin' ? 'System Admin' : adminUser.role.replace('_', ' ')}</p>
                                 </div>
-                                {adminUser.email !== MASTER_ADMIN_EMAIL && (
+                                {!MASTER_ADMIN_EMAILS.includes(adminUser.email) && (
                                   <div className="flex items-center gap-2">
                                     {userToRemove?.uid === adminUser.uid ? (
                                       <div className="flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
@@ -470,10 +591,10 @@ export default function App() {
                   <div className="p-6 border-t border-slate-100">
                     <h3 className="text-lg font-bold text-red-600 mb-4 font-display">Pengurusan Data (Bahaya)</h3>
                     <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                      <p className="text-sm text-red-700 mb-4">Padam semua data permohonan untuk memulakan sesi baru. Tindakan ini akan memadam semua rekod permohonan secara kekal.</p>
+                      <p className="text-sm text-red-700 mb-4">Padam semua data permohonan untuk memulakan sesi baharu. Tindakan ini akan memadam semua rekod permohonan secara kekal.</p>
                       {showDeleteConfirm ? (
                         <div className="bg-white p-4 rounded-lg border border-red-200 shadow-sm">
-                          <p className="text-sm font-bold text-slate-900 mb-3">Adakah anda pasti? Tindakan ini tidak boleh diundur.</p>
+                          <p className="text-sm font-bold text-slate-900 mb-3">Adakah anda pasti? Tindakan ini tidak boleh dikembalikan.</p>
                           <div className="flex gap-3">
                             <button 
                               onClick={handleStartFresh}
@@ -496,7 +617,7 @@ export default function App() {
                           onClick={() => setShowDeleteConfirm(true)}
                           className="bg-red-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
                         >
-                          Padam Semua Permohonan (Start Fresh)
+                          Padam Semua Permohonan (Mula Semula)
                         </button>
                       )}
                     </div>
@@ -535,9 +656,9 @@ export default function App() {
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <div className="flex-1">
             <h1 className="text-sm font-bold text-white leading-tight font-display tracking-tight">
-              e-Kesatuan<br/>
-              <span className="text-amber-400 text-xs block">Mahasiswa UPM</span>
-              <span className="text-[9px] text-slate-500 font-medium block mt-0.5">(Portal Pengurusan Aktiviti Pelajar)</span>
+              Portal Aktiviti<br/>
+              <span className="text-amber-400 text-xs block">Pelajar UPM</span>
+              <span className="text-[9px] text-slate-500 font-medium block mt-0.5">e-Kesatuan Mahasiswa · Radar Bakat</span>
             </h1>
           </div>
           <button 
@@ -610,6 +731,7 @@ export default function App() {
               <span className="truncate max-w-[150px] sm:max-w-none">
                 {activeTab === 'dashboard' && 'Papan Pemuka Utama'}
                 {activeTab === 'profile' && 'Profil Pelajar'}
+                {activeTab === 'bakat' && 'Modul Bakat'}
                 {activeTab === 'applications' && 'Modul Permohonan'}
                 {activeTab === 'approvals' && 'Modul Kelulusan'}
                 {activeTab === 'reports' && 'Modul Pelaporan'}
@@ -619,7 +741,7 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-2 sm:gap-3">
-            {user?.email === MASTER_ADMIN_EMAIL && (
+            {user && MASTER_ADMIN_EMAILS.includes(user.email) && (
               <div className="flex items-center gap-2">
                 <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider hidden xs:block">Uji:</label>
                 <select 

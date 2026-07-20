@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { Filter, Download, ChevronDown, Loader2, Sparkles, Clock } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
-import { getApplications, getCategories, getReports } from '../../services/firestoreService';
+import { getApplications, getCategories, getReports } from '../../services/dataService';
 import { Application, Report } from '../../types';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1'];

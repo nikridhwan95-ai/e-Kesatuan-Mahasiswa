@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Settings } from 'lucide-react';
 import { UserRole, Application, PresentationSession } from '../../types';
 import PresentationSessionManager from './PresentationSessionManager';
-import { getApplications, updateApplication, getPresentationSessions, createPresentationSession, updatePresentationSessionStatus, updateApplicationPresentation, getUsers, updateApplicationStatus, deletePresentationSession } from '../../services/firestoreService';
+import { getApplications, updateApplication, getPresentationSessions, createPresentationSession, updatePresentationSessionStatus, updateApplicationPresentation, getUsers, updateApplicationStatus, deletePresentationSession } from '../../services/dataService';
 
 interface PresentationModuleProps {
   currentUserRole: UserRole;

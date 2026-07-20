@@ -51,7 +51,7 @@ export async function analyzePostProgramReport(reportText: string) {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Sila analisis laporan pasca-program berikut dan berikan sentimen ringkas mengenai kejayaan program berdasarkan laporan pelajar.
+      contents: `Sila analisis laporan pascaprogram berikut dan berikan sentimen ringkas mengenai kejayaan program berdasarkan laporan pelajar.
       
       Laporan:
       ${reportText}`,

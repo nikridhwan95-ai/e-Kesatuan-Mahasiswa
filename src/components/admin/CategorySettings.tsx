@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Tag, Loader2 } from 'lucide-react';
-import { getCategories, addCategory, deleteCategory } from '../../services/firestoreService';
+import { getCategories, addCategory, deleteCategory } from '../../services/dataService';
 
 export default function CategorySettings() {
   const [categories, setCategories] = useState<string[]>([]);
@@ -70,7 +70,7 @@ export default function CategorySettings() {
             type="text" 
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
-            placeholder="Nama Kategori Baru (contoh: Keusahawanan)" 
+            placeholder="Nama Kategori Baharu (contoh: Keusahawanan)" 
             className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             disabled={submitting}
           />
