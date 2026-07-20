@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User as UserIcon, Mail, Building, BookOpen, Award, Camera, Save, RefreshCw } from 'lucide-react';
-import { getUserProfile, updateUserProfile, getFaculties, getColleges } from '../../services/firestoreService';
-import { auth } from '../../firebase';
+import { getUserProfile, updateUserProfile, getFaculties, getColleges } from '../../services/dataService';
+import { getCurrentAppUser, AppUser } from '../../supabase';
 import { User } from '../../types';
 
 interface StudentProfileProps {
@@ -14,28 +14,31 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
   const [profile, setProfile] = useState<User | null>(null);
   const [faculties, setFaculties] = useState<string[]>([]);
   const [colleges, setColleges] = useState<string[]>([]);
+  const [authUser, setAuthUser] = useState<AppUser | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [userProfile, facultyList, collegeList] = await Promise.all([
+        const [userProfile, facultyList, collegeList, currentAuthUser] = await Promise.all([
           getUserProfile(userId),
           getFaculties(),
-          getColleges()
+          getColleges(),
+          getCurrentAppUser()
         ]);
-        
+
         setFaculties(facultyList);
         setColleges(collegeList);
-        
+        setAuthUser(currentAuthUser);
+
         let currentProfile = userProfile;
 
         // If no profile exists, initialize a new one from Auth
-        if (!currentProfile && auth.currentUser) {
+        if (!currentProfile && currentAuthUser) {
            currentProfile = {
-             uid: auth.currentUser.uid,
-             email: auth.currentUser.email || '',
-             name: auth.currentUser.displayName || '',
+             uid: currentAuthUser.uid,
+             email: currentAuthUser.email || '',
+             name: currentAuthUser.displayName || '',
              displayName: '',
              photoURL: '',
              role: 'student', // Default role
@@ -43,18 +46,18 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
            };
         }
 
-        // Auto-fill missing details from Google Auth
-        if (currentProfile && auth.currentUser) {
+        // Auto-fill missing details from Auth
+        if (currentProfile && currentAuthUser) {
           let newDisplayName = currentProfile.displayName;
           let newPhotoURL = currentProfile.photoURL;
 
           // 1. Try to get from Auth if missing
-          if (!newDisplayName) newDisplayName = auth.currentUser.displayName || '';
-          if (!newPhotoURL) newPhotoURL = auth.currentUser.photoURL || '';
+          if (!newDisplayName) newDisplayName = currentAuthUser.displayName || '';
+          if (!newPhotoURL) newPhotoURL = currentAuthUser.photoURL || '';
 
           // 2. Fallback: Parse from email if still no name
-          if (!newDisplayName && auth.currentUser.email) {
-            const emailName = auth.currentUser.email.split('@')[0];
+          if (!newDisplayName && currentAuthUser.email) {
+            const emailName = currentAuthUser.email.split('@')[0];
             // Remove numbers and replace dots/underscores with spaces
             newDisplayName = emailName.replace(/[0-9]/g, '').replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).trim();
           }
@@ -77,12 +80,12 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
   }, [userId]);
 
   const handleExtractFromEmail = () => {
-    if (auth.currentUser && profile) {
-      let newDisplayName = auth.currentUser.displayName;
-      
-      // If no display name from Google, try to parse from email
-      if (!newDisplayName && auth.currentUser.email) {
-        const emailName = auth.currentUser.email.split('@')[0];
+    if (authUser && profile) {
+      let newDisplayName = authUser.displayName;
+
+      // If no display name from the auth account, try to parse from email
+      if (!newDisplayName && authUser.email) {
+        const emailName = authUser.email.split('@')[0];
         // Remove numbers and replace dots/underscores with spaces
         newDisplayName = emailName.replace(/[0-9]/g, '').replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).trim();
       }
@@ -90,10 +93,10 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
       setProfile({
         ...profile,
         displayName: newDisplayName || profile.displayName,
-        photoURL: auth.currentUser.photoURL || profile.photoURL,
-        email: auth.currentUser.email || profile.email
+        photoURL: authUser.photoURL || profile.photoURL,
+        email: authUser.email || profile.email
       });
-      alert("Maklumat berjaya diekstrak dari akaun Google.");
+      alert("Maklumat berjaya diekstrak dari akaun log masuk.");
     } else {
       alert("Tiada maklumat pengguna ditemui.");
     }

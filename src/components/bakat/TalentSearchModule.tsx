@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { User } from '../../types';
-import { getUsers } from '../../services/firestoreService';
+import { getUsers } from '../../services/dataService';
 import { Evidence, competencyName } from '../../bakat/domain';
 import { getAllEvidence, syncAllEvidence } from '../../bakat/evidenceService';
 import {

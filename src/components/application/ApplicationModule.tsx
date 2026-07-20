@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, FileText, Upload, Calendar, DollarSign, Search, ArrowLeft, CheckCircle, Clock, AlertTriangle, XCircle, AlertCircle, DoorOpen, Link as LinkIcon, ArrowRight } from 'lucide-react';
 import { UserRole, ApplicationStatus, Application, User } from '../../types';
-import { getApplications, createApplication, updateApplicationStatus, deleteApplication, uploadFile, getCategories, updateApplication, getUsers, getPresentationSessions, getUserProfile } from '../../services/firestoreService';
+import { getApplications, createApplication, updateApplicationStatus, deleteApplication, uploadFile, getCategories, updateApplication, getUsers, getPresentationSessions, getUserProfile } from '../../services/dataService';
 import { PresentationSession } from '../../types';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
 

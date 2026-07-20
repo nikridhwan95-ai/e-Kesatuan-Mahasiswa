@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Archive, Search, Filter, Calendar, FileText, User, Tag } from 'lucide-react';
 import { Application } from '../../types';
-import { getApplications, getUsers } from '../../services/firestoreService';
+import { getApplications, getUsers } from '../../services/dataService';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
 
 import { getCurrentAcademicSession, getCurrentSemester, generateAcademicSessions } from '../../utils/dateUtils';

@@ -3,7 +3,7 @@ import { Search, Filter, ArrowUpDown, FileText, Eye, CheckCircle, AlertCircle, C
 import { Application, UserRole, ApplicationStatus } from '../../types';
 import ApprovalWorkflow from '../approval/ApprovalWorkflow';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
-import { getApplications, updateApplicationStatus, getUsers } from '../../services/firestoreService';
+import { getApplications, updateApplicationStatus, getUsers } from '../../services/dataService';
 
 interface ReviewModuleProps {
   currentUserRole: UserRole;

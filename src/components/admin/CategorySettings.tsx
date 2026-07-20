@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Tag, Loader2 } from 'lucide-react';
-import { getCategories, addCategory, deleteCategory } from '../../services/firestoreService';
+import { getCategories, addCategory, deleteCategory } from '../../services/dataService';
 
 export default function CategorySettings() {
   const [categories, setCategories] = useState<string[]>([]);

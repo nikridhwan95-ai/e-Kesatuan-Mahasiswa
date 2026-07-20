@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FileText, CheckCircle, Download, Calendar, User, Building, ChevronLeft } from 'lucide-react';
 import { Application, User as UserType } from '../../types';
-import { getApplicationById, getUserProfile } from '../../services/firestoreService';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { getApplicationById, getUserProfile, getSetting } from '../../services/dataService';
 
 interface ApprovalLetterModuleProps {
   applicationId?: string;
@@ -37,10 +35,9 @@ export default function ApprovalLetterModule({ applicationId, onBack }: Approval
         setApplicant(userData);
       }
       
-      const docRef = doc(db, 'settings', 'approvalLetter');
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setSettings(docSnap.data() as any);
+      const letterSettings = await getSetting<Record<string, string>>('approvalLetter');
+      if (letterSettings) {
+        setSettings(letterSettings as any);
       }
     } catch (error) {
       console.error("Error fetching data for letter:", error);

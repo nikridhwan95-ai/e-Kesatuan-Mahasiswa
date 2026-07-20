@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, FileText, Upload, CheckCircle, XCircle } from 'lucide-react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
-import { uploadFile } from '../../services/firestoreService';
+import { getSetting, saveSetting, uploadFile } from '../../services/dataService';
 
 export default function LetterSettingsModule() {
   const [settings, setSettings] = useState({
@@ -20,14 +18,13 @@ export default function LetterSettingsModule() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const docRef = doc(db, 'settings', 'approvalLetter');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
+        const data = await getSetting<Record<string, string>>('approvalLetter');
+        if (data) {
           setSettings({
-            organizationName: docSnap.data().organizationName || 'Majlis Perwakilan Pelajar',
-            refPrefix: docSnap.data().refPrefix || 'UPM/KM/2026/',
-            letterheadUrl: docSnap.data().letterheadUrl || '',
-            letterBody: docSnap.data().letterBody || 'Sukacita dimaklumkan bahawa permohonan anda telah diluluskan.\n\nSila patuhi segala peraturan dan garis panduan yang telah ditetapkan oleh pihak universiti sepanjang program berlangsung.'
+            organizationName: data.organizationName || 'Majlis Perwakilan Pelajar',
+            refPrefix: data.refPrefix || 'UPM/KM/2026/',
+            letterheadUrl: data.letterheadUrl || '',
+            letterBody: data.letterBody || 'Sukacita dimaklumkan bahawa permohonan anda telah diluluskan.\n\nSila patuhi segala peraturan dan garis panduan yang telah ditetapkan oleh pihak universiti sepanjang program berlangsung.'
           });
         }
       } catch (error) {
@@ -55,7 +52,7 @@ export default function LetterSettingsModule() {
         letterheadUrl: finalLetterheadUrl
       };
 
-      await setDoc(doc(db, 'settings', 'approvalLetter'), newSettings);
+      await saveSetting('approvalLetter', newSettings);
       setSettings(newSettings);
       setImageFile(null);
       setMessage('Tetapan surat kelulusan berjaya disimpan.');

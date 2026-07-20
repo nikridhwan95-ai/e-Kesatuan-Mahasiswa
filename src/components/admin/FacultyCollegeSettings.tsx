@@ -3,7 +3,7 @@ import { Plus, Trash2, Building2, Home, Loader2, AlertCircle } from 'lucide-reac
 import { 
   getFaculties, addFaculty, deleteFaculty, 
   getColleges, addCollege, deleteCollege 
-} from '../../services/firestoreService';
+} from '../../services/dataService';
 
 export default function FacultyCollegeSettings() {
   const [faculties, setFaculties] = useState<string[]>([]);

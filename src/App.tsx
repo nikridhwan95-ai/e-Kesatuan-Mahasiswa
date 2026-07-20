@@ -21,10 +21,8 @@ import DataAnalyticsModule from './components/admin/DataAnalyticsModule';
 import BakatProfile from './components/bakat/BakatProfile';
 import TalentSearchModule from './components/bakat/TalentSearchModule';
 import { Application, UserRole, User as UserType } from './types';
-import { db, auth } from './firebase';
-import { doc, getDocFromServer, onSnapshot } from 'firebase/firestore';
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/firestoreService';
+import { supabase, toAppUser, AppUser } from './supabase';
+import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/dataService';
 
 type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat';
 
@@ -32,8 +30,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('student');
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
   const [userData, setUserData] = useState<UserType | null>(null);
   const [allUsers, setAllUsers] = useState<UserType[]>([]);
   const [newRoleEmail, setNewRoleEmail] = useState('');
@@ -51,49 +52,66 @@ export default function App() {
   const MASTER_ADMIN_EMAIL = 'nikridhwan95@gmail.com';
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        // Listen to user profile changes in real-time
-        const unsubProfile = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
-          const isMasterAdmin = currentUser.email === MASTER_ADMIN_EMAIL;
-          
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserType;
-            
-            // Force master admin role if not already set
-            if (isMasterAdmin && data.role !== 'admin') {
-              await updateUserProfile(currentUser.uid, { role: 'admin' });
-              data.role = 'admin';
-            }
-            
-            setUserData(data);
-            setCurrentUserRole(data.role);
-          } else {
-            // Create default profile if not exists
-            const emailName = currentUser.email ? currentUser.email.split('@')[0].replace(/\./g, ' ').replace(/\d+/g, '').trim() : 'New User';
-            const formattedName = emailName.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-            
-            const newProfile: Partial<UserType> = {
-              email: currentUser.email || '',
-              name: formattedName || currentUser.displayName || 'New User',
-              role: isMasterAdmin ? 'admin' : 'student',
-              uid: currentUser.uid,
-              createdAt: new Date().toISOString()
-            };
-            await createUserProfile(currentUser.uid, newProfile);
-          }
-          setLoading(false);
-        });
-        return () => unsubProfile();
-      } else {
+    // Sesi tempatan semasa (jika ada), kemudian dengar perubahan auth Supabase.
+    supabase.auth.getSession().then(({ data }) => {
+      const appUser = toAppUser(data.session?.user);
+      setUser(appUser);
+      if (!appUser) setLoading(false);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const appUser = toAppUser(session?.user);
+      setUser(appUser);
+      if (!appUser) {
         setUserData(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => sub.subscription.unsubscribe();
   }, []);
+
+  // Muat / cipta profil pengguna dalam jadual 'users' selepas log masuk.
+  const loadProfile = async (currentUser: AppUser) => {
+    const isMasterAdmin = currentUser.email === MASTER_ADMIN_EMAIL;
+    try {
+      let data = await getUserProfile(currentUser.uid);
+
+      if (!data) {
+        const emailName = currentUser.email ? currentUser.email.split('@')[0].replace(/\./g, ' ').replace(/\d+/g, '').trim() : 'New User';
+        const formattedName = emailName.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+        const newProfile: Partial<UserType> = {
+          email: currentUser.email || '',
+          name: currentUser.displayName || formattedName || 'New User',
+          role: isMasterAdmin ? 'admin' : 'student',
+          uid: currentUser.uid,
+          createdAt: new Date().toISOString()
+        };
+        await createUserProfile(currentUser.uid, newProfile);
+        data = await getUserProfile(currentUser.uid);
+      }
+
+      if (data) {
+        // Paksa peranan master admin jika belum ditetapkan
+        if (isMasterAdmin && data.role !== 'admin') {
+          await updateUserProfile(currentUser.uid, { role: 'admin' });
+          data = { ...data, role: 'admin' as UserRole };
+        }
+        setUserData(data);
+        setCurrentUserRole(data.role);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      showNotification('Gagal memuat profil. Pastikan supabase/schema.sql telah dijalankan.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) loadProfile(user);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (currentUserRole === 'admin') {
@@ -110,24 +128,44 @@ export default function App() {
     }
   };
 
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
+  const handleGoogleLogin = async () => {
+    setLoggingIn(true);
     try {
-      await signInWithPopup(auth, provider);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      // Pelayar akan dialihkan ke Google; sesi dikesan semula selepas kembali.
     } catch (error: any) {
-      console.error("Login failed:", error);
-      if (error.code === 'auth/unauthorized-domain') {
-        const domain = window.location.hostname;
-        showNotification(`Ralat Domain: Sila tambah domain ini ke dalam Firebase Console > Authentication > Settings > Authorized Domains:\n\n${domain}`, 'error');
-      } else {
-        showNotification(`Login failed: ${error.message}`, 'error');
-      }
+      console.error('Login failed:', error);
+      showNotification(`Log masuk Google gagal: ${error.message}. Pastikan penyedia Google diaktifkan dalam Supabase Dashboard > Authentication > Providers.`, 'error');
+      setLoggingIn(false);
+    }
+  };
+
+  const handleMagicLinkLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail) return;
+    setLoggingIn(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: loginEmail,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      setMagicLinkSent(true);
+    } catch (error: any) {
+      console.error('Magic link failed:', error);
+      showNotification(`Gagal menghantar pautan log masuk: ${error.message}`, 'error');
+    } finally {
+      setLoggingIn(false);
     }
   };
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -200,7 +238,7 @@ export default function App() {
       try {
         await updateUserProfile(user.uid, { role: newRole });
         showNotification(`Peranan anda telah dikemaskini kepada ${newRole}.`, 'success');
-        // State update will happen via onSnapshot
+        await loadProfile(user);
       } catch (error) {
         console.error("Failed to update role:", error);
         showNotification("Failed to update role. Check console for details.", 'error');
@@ -225,13 +263,54 @@ export default function App() {
           <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display">Portal Aktiviti Pelajar UPM</h1>
           <p className="text-slate-500 mb-2 font-medium">e-Kesatuan Mahasiswa · Radar Bakat</p>
           <p className="text-xs text-slate-400 mb-8">Pengurusan aktiviti pelajar & kecerdasan bakat dalam satu portal bersepadu</p>
-          <button 
-            onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loggingIn}
+            className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
           >
             <LogIn className="w-5 h-5" /> Log Masuk dengan Google
           </button>
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400 font-medium">ATAU</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          {magicLinkSent ? (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-sm font-medium">
+              Pautan log masuk telah dihantar ke <span className="font-bold">{loginEmail}</span>. Sila semak e-mel anda.
+            </div>
+          ) : (
+            <form onSubmit={handleMagicLinkLogin} className="space-y-3">
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="E-mel anda (cth: nama@siswa.upm.edu.my)"
+                className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loggingIn || !loginEmail}
+                className="w-full border border-slate-300 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Hantar Pautan Log Masuk (E-mel)
+              </button>
+            </form>
+          )}
         </div>
+        {notification && (
+          <div className={`fixed top-4 right-4 z-[100] max-w-md px-6 py-4 rounded-2xl shadow-2xl border text-sm font-bold ${
+            notification.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            {notification.message}
+          </div>
+        )}
       </div>
     );
   }

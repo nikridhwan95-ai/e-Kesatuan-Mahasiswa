@@ -2,8 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { TrendingUp, DollarSign, Clock, Activity, ShieldAlert, FileText, CheckCircle, AlertCircle, Users, Wallet, Sparkles, Loader2 } from 'lucide-react';
 import { UserRole, Application, Report } from '../../types';
-import { getApplications, getReports } from '../../services/firestoreService';
-import { auth } from '../../firebase';
+import { getApplications, getReports } from '../../services/dataService';
+import { getCurrentAppUser } from '../../supabase';
 import { GoogleGenAI } from '@google/genai';
 
 interface AnalyticsDashboardProps {
@@ -32,7 +32,7 @@ export default function AnalyticsDashboard({ currentUserRole }: AnalyticsDashboa
 
   const fetchDashboardData = async () => {
     try {
-      const uid = auth.currentUser?.uid || '';
+      const uid = (await getCurrentAppUser())?.uid || '';
       const [appsData, reportsData] = await Promise.all([
         getApplications(currentUserRole, uid),
         getReports(currentUserRole, uid)

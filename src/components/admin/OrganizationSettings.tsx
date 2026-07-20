@@ -3,7 +3,7 @@ import { Plus, Trash2, Building2, Home, Loader2, ChevronRight } from 'lucide-rea
 import { 
   getFaculties, addFaculty, deleteFaculty,
   getColleges, addCollege, deleteCollege 
-} from '../../services/firestoreService';
+} from '../../services/dataService';
 
 type SettingType = 'faculty' | 'college';
 

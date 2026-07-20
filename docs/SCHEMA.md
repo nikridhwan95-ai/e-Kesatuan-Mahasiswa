@@ -54,9 +54,19 @@ Semakan sifat enjin: `npm run check:bakat`.
   /context              # React Context (AuthContext)
 \`\`\`
 
-## 2. Skema Pangkalan Data (Firestore - NoSQL)
+## 2. Skema Pangkalan Data (Supabase / Postgres)
 
-Sistem ini menggunakan struktur NoSQL berasaskan dokumen.
+Sistem ini menggunakan **Supabase** (Postgres + Auth + Storage). Sumber
+kebenaran skema ialah **\`supabase/schema.sql\`** — jalankan sekali dalam
+Supabase Dashboard → SQL Editor. Nama lajur camelCase (dipetik) dipilih
+supaya sama dengan jenis TypeScript aplikasi, jadi lapisan servis
+(\`src/services/dataService.ts\`) tidak memerlukan pemetaan medan. Kawalan
+akses dikuatkuasakan oleh polisi RLS dalam fail skema yang sama; muat naik
+fail menggunakan baldi Storage \`uploads\`.
+
+Senarai "koleksi" di bawah kini merujuk kepada JADUAL Postgres dengan medan
+yang sama (jadual \`presentationSessions\` dinamakan \`presentation_sessions\`;
+\`settings\` ialah jadual baris fleksibel \`id → data jsonb\`).
 
 ### Koleksi: \`users\`
 Menyimpan profil pengguna dan kawalan akses berasaskan peranan (RBAC).

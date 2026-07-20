@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, CheckCircle, AlertCircle, FileText, Image as ImageIcon, XCircle, Search, DollarSign, Clock, Calendar, User } from 'lucide-react';
 import { UserRole, Application, Report } from '../../types';
-import { getApplications, getReports, createReport, updateReportStatus, uploadFile, getUsers } from '../../services/firestoreService';
+import { getApplications, getReports, createReport, updateReportStatus, uploadFile, getUsers } from '../../services/dataService';
 import { syncEvidenceForApplication } from '../../bakat/evidenceService';
 
 interface ReportModuleProps {
