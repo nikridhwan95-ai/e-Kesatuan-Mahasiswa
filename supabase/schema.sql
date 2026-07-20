@@ -139,7 +139,10 @@ as $$
   select coalesce(
     (select role from public.users where uid = (select auth.uid())::text) = 'admin',
     false
-  ) or coalesce((select auth.jwt() ->> 'email') = 'nikridhwan95@gmail.com', false)
+  ) or coalesce(
+    (select auth.jwt() ->> 'email') in ('ekmupm@portal-bhep.upm.edu.my', 'nikridhwan95@gmail.com'),
+    false
+  )
 $$;
 
 -- ── RLS ─────────────────────────────────────────────────────────────────────

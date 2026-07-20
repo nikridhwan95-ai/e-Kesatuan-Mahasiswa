@@ -11,12 +11,14 @@ disokong oleh **Supabase** (Auth + Postgres + Storage).
    tampal kandungan `supabase/schema.sql` dan jalankan. Ia mencipta jadual
    (`users`, `applications`, `reports`, `presentation_sessions`, `settings`,
    `evidence`), polisi RLS, dan baldi Storage `uploads`. Selamat dijalankan semula.
-2. **Log masuk Google (pilihan)** — Dashboard → Authentication → Providers →
-   Google → Enable, dan isikan Client ID/Secret dari Google Cloud Console.
-   Tanpa langkah ini, pengguna masih boleh log masuk melalui **pautan e-mel
-   (magic link)** yang berfungsi secara lalai.
-3. **URL aplikasi** — Dashboard → Authentication → URL Configuration →
-   tambah URL aplikasi anda (cth `http://localhost:3000`) dalam Redirect URLs.
+2. **Akaun log masuk portal** — portal menggunakan log masuk nama pengguna +
+   kata laluan (nama pengguna `ekmupm`). Di sebalik tabir ia adalah akaun
+   e-mel Supabase `ekmupm@portal-bhep.upm.edu.my`. Pilih SATU cara:
+   - *Automatik:* Dashboard → Authentication → Sign In / Providers → Email →
+     matikan **Confirm email**. Log masuk pertama akan mencipta akaun sendiri.
+   - *Manual:* Dashboard → Authentication → Users → **Add user** dengan e-mel
+     `ekmupm@portal-bhep.upm.edu.my`, kata laluan portal, dan tandakan
+     **Auto Confirm User**.
 
 Konfigurasi klien berada dalam `src/supabase.ts` (boleh diatasi dengan
 `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` dalam `.env.local`).

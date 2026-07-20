@@ -13,6 +13,19 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// ── Log masuk nama pengguna + kata laluan ──────────────────────────────────
+// Portal menggunakan SATU akaun kongsi (nama pengguna 'ekmupm'). Di sebalik
+// tabir, nama pengguna dipetakan kepada akaun e-mel sintetik Supabase supaya
+// sesi auth & polisi RLS berfungsi seperti biasa.
+export const PORTAL_USERNAME = 'ekmupm';
+const USERNAME_DOMAIN = 'portal-bhep.upm.edu.my';
+
+export function usernameToEmail(username: string): string {
+  return `${username.trim().toLowerCase()}@${USERNAME_DOMAIN}`;
+}
+
+export const PORTAL_ADMIN_EMAIL = usernameToEmail(PORTAL_USERNAME);
+
 // Bentuk pengguna yang digunakan oleh UI (serasi dengan bentuk Firebase lama:
 // uid / email / displayName / photoURL).
 export interface AppUser {

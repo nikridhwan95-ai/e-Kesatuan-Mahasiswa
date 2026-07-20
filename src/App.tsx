@@ -21,7 +21,7 @@ import DataAnalyticsModule from './components/admin/DataAnalyticsModule';
 import BakatProfile from './components/bakat/BakatProfile';
 import TalentSearchModule from './components/bakat/TalentSearchModule';
 import { Application, UserRole, User as UserType } from './types';
-import { supabase, toAppUser, AppUser } from './supabase';
+import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_USERNAME, PORTAL_ADMIN_EMAIL } from './supabase';
 import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/dataService';
 
 type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat';
@@ -32,9 +32,10 @@ export default function App() {
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('student');
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loginEmail, setLoginEmail] = useState('');
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const [userData, setUserData] = useState<UserType | null>(null);
   const [allUsers, setAllUsers] = useState<UserType[]>([]);
   const [newRoleEmail, setNewRoleEmail] = useState('');
@@ -49,7 +50,8 @@ export default function App() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const MASTER_ADMIN_EMAIL = 'nikridhwan95@gmail.com';
+  // Akaun portal kongsi (ekmupm) + akaun pemilik asal — kedua-duanya master admin.
+  const MASTER_ADMIN_EMAILS = [PORTAL_ADMIN_EMAIL, 'nikridhwan95@gmail.com'];
 
   useEffect(() => {
     // Sesi tempatan semasa (jika ada), kemudian dengar perubahan auth Supabase.
@@ -73,7 +75,7 @@ export default function App() {
 
   // Muat / cipta profil pengguna dalam jadual 'users' selepas log masuk.
   const loadProfile = async (currentUser: AppUser) => {
-    const isMasterAdmin = currentUser.email === MASTER_ADMIN_EMAIL;
+    const isMasterAdmin = MASTER_ADMIN_EMAILS.includes(currentUser.email);
     try {
       let data = await getUserProfile(currentUser.uid);
 
@@ -83,7 +85,9 @@ export default function App() {
 
         const newProfile: Partial<UserType> = {
           email: currentUser.email || '',
-          name: currentUser.displayName || formattedName || 'New User',
+          name: currentUser.email === PORTAL_ADMIN_EMAIL
+            ? 'Urus Setia BHEP UPM'
+            : currentUser.displayName || formattedName || 'New User',
           role: isMasterAdmin ? 'admin' : 'student',
           uid: currentUser.uid,
           createdAt: new Date().toISOString()
@@ -128,36 +132,43 @@ export default function App() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setLoggingIn(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin },
-      });
-      if (error) throw error;
-      // Pelayar akan dialihkan ke Google; sesi dikesan semula selepas kembali.
-    } catch (error: any) {
-      console.error('Login failed:', error);
-      showNotification(`Log masuk Google gagal: ${error.message}. Pastikan penyedia Google diaktifkan dalam Supabase Dashboard > Authentication > Providers.`, 'error');
-      setLoggingIn(false);
-    }
-  };
-
-  const handleMagicLinkLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginEmail) return;
+    if (!loginUsername || !loginPassword) return;
     setLoggingIn(true);
+    setLoginError('');
+
+    const email = usernameToEmail(loginUsername);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: loginEmail,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      if (error) throw error;
-      setMagicLinkSent(true);
-    } catch (error: any) {
-      console.error('Magic link failed:', error);
-      showNotification(`Gagal menghantar pautan log masuk: ${error.message}`, 'error');
+      let { error } = await supabase.auth.signInWithPassword({ email, password: loginPassword });
+
+      // Akaun portal belum wujud di Supabase? Sediakan secara automatik pada
+      // log masuk pertama — hanya untuk nama pengguna portal yang sah.
+      if (error && loginUsername.trim().toLowerCase() === PORTAL_USERNAME) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password: loginPassword,
+        });
+        if (!signUpError) {
+          if (signUpData.session) {
+            error = null; // sesi terus aktif (pengesahan e-mel dimatikan)
+          } else {
+            // Pengesahan e-mel masih aktif — akaun perlu dicipta manual.
+            setLoginError(
+              'Akaun portal belum diaktifkan. Sila matikan "Confirm email" dalam Supabase Dashboard → Authentication → Sign In / Providers → Email, atau cipta pengguna ' + email + ' secara manual di Authentication → Users (tandakan Auto Confirm).'
+            );
+            setLoggingIn(false);
+            return;
+          }
+        }
+      }
+
+      if (error) {
+        setLoginError('Nama pengguna atau kata laluan salah.');
+      }
+    } catch (err) {
+      console.error('Login failed:', err);
+      setLoginError('Log masuk gagal. Sila cuba lagi.');
     } finally {
       setLoggingIn(false);
     }
@@ -199,7 +210,7 @@ export default function App() {
   const [userToRemove, setUserToRemove] = useState<{uid: string, email: string} | null>(null);
 
   const handleRemoveRole = async (uid: string, email: string) => {
-    if (email === MASTER_ADMIN_EMAIL) {
+    if (MASTER_ADMIN_EMAILS.includes(email)) {
       showNotification('Peranan Master Admin tidak boleh dibuang.', 'error');
       return;
     }
@@ -264,43 +275,46 @@ export default function App() {
           <p className="text-slate-500 mb-2 font-medium">e-Kesatuan Mahasiswa · Radar Bakat</p>
           <p className="text-xs text-slate-400 mb-8">Pengurusan aktiviti pelajar & kecerdasan bakat dalam satu portal bersepadu</p>
 
-          <button
-            onClick={handleGoogleLogin}
-            disabled={loggingIn}
-            className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
-          >
-            <LogIn className="w-5 h-5" /> Log Masuk dengan Google
-          </button>
-
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs text-slate-400 font-medium">ATAU</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </div>
-
-          {magicLinkSent ? (
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-sm font-medium">
-              Pautan log masuk telah dihantar ke <span className="font-bold">{loginEmail}</span>. Sila semak e-mel anda.
-            </div>
-          ) : (
-            <form onSubmit={handleMagicLinkLogin} className="space-y-3">
+          <form onSubmit={handleLogin} className="space-y-4 text-left">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Nama Pengguna</label>
               <input
-                type="email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="E-mel anda (cth: nama@siswa.upm.edu.my)"
+                type="text"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                placeholder="Nama pengguna"
+                autoComplete="username"
                 className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
                 required
               />
-              <button
-                type="submit"
-                disabled={loggingIn || !loginEmail}
-                className="w-full border border-slate-300 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50"
-              >
-                Hantar Pautan Log Masuk (E-mel)
-              </button>
-            </form>
-          )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Kata Laluan</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Kata laluan"
+                autoComplete="current-password"
+                className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+                required
+              />
+            </div>
+
+            {loginError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
+                {loginError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loggingIn || !loginUsername || !loginPassword}
+              className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
+            >
+              <LogIn className="w-5 h-5" /> {loggingIn ? 'Sedang Log Masuk...' : 'Log Masuk'}
+            </button>
+          </form>
         </div>
         {notification && (
           <div className={`fixed top-4 right-4 z-[100] max-w-md px-6 py-4 rounded-2xl shadow-2xl border text-sm font-bold ${
@@ -536,7 +550,7 @@ export default function App() {
                                   <p className="font-medium text-slate-900">{adminUser.email}</p>
                                   <p className="text-xs text-slate-500 capitalize">{adminUser.role === 'admin' ? 'System Admin' : adminUser.role.replace('_', ' ')}</p>
                                 </div>
-                                {adminUser.email !== MASTER_ADMIN_EMAIL && (
+                                {!MASTER_ADMIN_EMAILS.includes(adminUser.email) && (
                                   <div className="flex items-center gap-2">
                                     {userToRemove?.uid === adminUser.uid ? (
                                       <div className="flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
@@ -727,7 +741,7 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-2 sm:gap-3">
-            {user?.email === MASTER_ADMIN_EMAIL && (
+            {user && MASTER_ADMIN_EMAILS.includes(user.email) && (
               <div className="flex items-center gap-2">
                 <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider hidden xs:block">Uji:</label>
                 <select 
