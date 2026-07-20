@@ -330,59 +330,72 @@ export default function App() {
     );
   }
   
-  const getNavItems = () => {
-    const items: { id: Tab; label: string; icon: any }[] = [
+  // Navigasi disusun dalam TIGA kumpulan utama:
+  // 1. e-Kesatuan Mahasiswa  2. Portal Bakat  3. Tetapan Sistem
+  type NavItem = { id: Tab; label: string; icon: any };
+  type NavGroup = { label: string; accent: 'blue' | 'indigo'; items: NavItem[] };
+
+  const getNavGroups = (): NavGroup[] => {
+    const eKesatuan: NavItem[] = [
       { id: 'dashboard', label: 'Papan Pemuka', icon: LayoutDashboard },
     ];
+    const bakat: NavItem[] = [];
+    const tetapan: NavItem[] = [];
 
     switch (currentUserRole) {
       case 'student':
-        items.push({ id: 'profile', label: 'Profil Saya', icon: User });
-        items.push({ id: 'bakat', label: 'Profil Bakat', icon: Radar });
-        items.push({ id: 'applications', label: 'Permohonan Saya', icon: FileText });
-        items.push({ id: 'reports', label: 'Laporan Pascaprogram', icon: FileBarChart });
+        eKesatuan.push({ id: 'profile', label: 'Profil Saya', icon: User });
+        eKesatuan.push({ id: 'applications', label: 'Permohonan Saya', icon: FileText });
+        eKesatuan.push({ id: 'reports', label: 'Laporan Pascaprogram', icon: FileBarChart });
+        bakat.push({ id: 'bakat', label: 'Profil Bakat', icon: Radar });
         break;
       case 'unit_semakan':
-        items.push({ id: 'approvals', label: 'Semakan Kertas Kerja', icon: CheckSquare });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'approvals', label: 'Semakan Kertas Kerja', icon: CheckSquare });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
       case 'unit_pembentangan':
-        items.push({ id: 'presentations', label: 'Sesi Semakan KM', icon: Clock });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'presentations', label: 'Sesi Semakan KM', icon: Clock });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
       case 'unit_kertas_kerja':
-        items.push({ id: 'approvals', label: 'Semakan Pindaan Kertas Kerja', icon: CheckSquare });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
-        items.push({ id: 'settings', label: 'Tetapan Surat', icon: Settings });
+        eKesatuan.push({ id: 'approvals', label: 'Semakan Pindaan Kertas Kerja', icon: CheckSquare });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        tetapan.push({ id: 'settings', label: 'Tetapan Surat', icon: Settings });
         break;
       case 'unit_pelaporan':
-        items.push({ id: 'reports', label: 'Semakan Laporan', icon: FileBarChart });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'reports', label: 'Semakan Laporan', icon: FileBarChart });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
       case 'admin':
-        items.push({ id: 'analytics', label: 'Analitik Data', icon: BarChart2 });
-        items.push({ id: 'bakat', label: 'Radar Bakat', icon: Radar });
-        items.push({ id: 'import', label: 'Import Excel', icon: FileSpreadsheet });
-        items.push({ id: 'applications', label: 'Semua Permohonan', icon: FileText });
-        items.push({ id: 'approvals', label: 'Pengurusan Kelulusan', icon: CheckSquare });
-        items.push({ id: 'presentations', label: 'Jadual Semakan', icon: Clock });
-        items.push({ id: 'reports', label: 'Arkib Laporan', icon: FileBarChart });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
-        items.push({ id: 'settings', label: 'Tetapan Sistem', icon: Settings });
+        eKesatuan.push({ id: 'analytics', label: 'Analitik Data', icon: BarChart2 });
+        eKesatuan.push({ id: 'applications', label: 'Semua Permohonan', icon: FileText });
+        eKesatuan.push({ id: 'approvals', label: 'Pengurusan Kelulusan', icon: CheckSquare });
+        eKesatuan.push({ id: 'presentations', label: 'Jadual Semakan', icon: Clock });
+        eKesatuan.push({ id: 'reports', label: 'Arkib Laporan', icon: FileBarChart });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        bakat.push({ id: 'bakat', label: 'Radar Bakat', icon: Radar });
+        bakat.push({ id: 'import', label: 'Import Excel', icon: FileSpreadsheet });
+        tetapan.push({ id: 'settings', label: 'Tetapan Sistem', icon: Settings });
         break;
       case 'ydp':
-        items.push({ id: 'approvals', label: 'Kelulusan Eksekutif', icon: CheckSquare });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'approvals', label: 'Kelulusan Eksekutif', icon: CheckSquare });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
       case 'tnc_hepa':
-        items.push({ id: 'approvals', label: 'Kelulusan TNC HEPA', icon: CheckSquare });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'approvals', label: 'Kelulusan TNC HEPA', icon: CheckSquare });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
     }
-    return items;
+
+    const groups: NavGroup[] = [
+      { label: 'e-Kesatuan Mahasiswa', accent: 'blue', items: eKesatuan },
+      { label: 'Portal Bakat', accent: 'indigo', items: bakat },
+      { label: 'Tetapan Sistem', accent: 'blue', items: tetapan },
+    ];
+    return groups.filter((g) => g.items.length > 0);
   };
 
-  const navItems = getNavItems();
+  const navGroups = getNavGroups();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -680,22 +693,33 @@ export default function App() {
           </button>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setActiveTab(item.id);
-                setIsSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-left transition-all duration-200 ${
-                activeTab === item.id
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-              }`}
-            >
-              <item.icon className="w-5 h-5" /> {item.label}
-            </button>
+        <nav className="flex-1 p-4 space-y-5 overflow-y-auto">
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              <p className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                {group.label}
+              </p>
+              <div className="space-y-1.5">
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-left transition-all duration-200 ${
+                      activeTab === item.id
+                        ? group.accent === 'indigo'
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                          : 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5" /> {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
