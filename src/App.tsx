@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X, Radar } from 'lucide-react';
+import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X, Radar, FileSpreadsheet } from 'lucide-react';
 import ApprovalWorkflow from './components/approval/ApprovalWorkflow';
 import AnalyticsDashboard from './components/dashboard/AnalyticsDashboard';
 import ApplicationModule from './components/application/ApplicationModule';
@@ -20,11 +20,12 @@ import LetterSettingsModule from './components/settings/LetterSettingsModule';
 import DataAnalyticsModule from './components/admin/DataAnalyticsModule';
 import BakatProfile from './components/bakat/BakatProfile';
 import TalentSearchModule from './components/bakat/TalentSearchModule';
+import ExcelImportModule from './components/import/ExcelImportModule';
 import { Application, UserRole, User as UserType } from './types';
 import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_USERNAME, PORTAL_ADMIN_EMAIL } from './supabase';
 import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/dataService';
 
-type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat';
+type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat' | 'import';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -329,58 +330,72 @@ export default function App() {
     );
   }
   
-  const getNavItems = () => {
-    const items: { id: Tab; label: string; icon: any }[] = [
+  // Navigasi disusun dalam TIGA kumpulan utama:
+  // 1. e-Kesatuan Mahasiswa  2. Portal Bakat  3. Tetapan Sistem
+  type NavItem = { id: Tab; label: string; icon: any };
+  type NavGroup = { label: string; accent: 'blue' | 'indigo'; items: NavItem[] };
+
+  const getNavGroups = (): NavGroup[] => {
+    const eKesatuan: NavItem[] = [
       { id: 'dashboard', label: 'Papan Pemuka', icon: LayoutDashboard },
     ];
+    const bakat: NavItem[] = [];
+    const tetapan: NavItem[] = [];
 
     switch (currentUserRole) {
       case 'student':
-        items.push({ id: 'profile', label: 'Profil Saya', icon: User });
-        items.push({ id: 'bakat', label: 'Profil Bakat', icon: Radar });
-        items.push({ id: 'applications', label: 'Permohonan Saya', icon: FileText });
-        items.push({ id: 'reports', label: 'Laporan Pascaprogram', icon: FileBarChart });
+        eKesatuan.push({ id: 'profile', label: 'Profil Saya', icon: User });
+        eKesatuan.push({ id: 'applications', label: 'Permohonan Saya', icon: FileText });
+        eKesatuan.push({ id: 'reports', label: 'Laporan Pascaprogram', icon: FileBarChart });
+        bakat.push({ id: 'bakat', label: 'Profil Bakat', icon: Radar });
         break;
       case 'unit_semakan':
-        items.push({ id: 'approvals', label: 'Semakan Kertas Kerja', icon: CheckSquare });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'approvals', label: 'Semakan Kertas Kerja', icon: CheckSquare });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
       case 'unit_pembentangan':
-        items.push({ id: 'presentations', label: 'Sesi Semakan KM', icon: Clock });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'presentations', label: 'Sesi Semakan KM', icon: Clock });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
       case 'unit_kertas_kerja':
-        items.push({ id: 'approvals', label: 'Semakan Pindaan Kertas Kerja', icon: CheckSquare });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
-        items.push({ id: 'settings', label: 'Tetapan Surat', icon: Settings });
+        eKesatuan.push({ id: 'approvals', label: 'Semakan Pindaan Kertas Kerja', icon: CheckSquare });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        tetapan.push({ id: 'settings', label: 'Tetapan Surat', icon: Settings });
         break;
       case 'unit_pelaporan':
-        items.push({ id: 'reports', label: 'Semakan Laporan', icon: FileBarChart });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'reports', label: 'Semakan Laporan', icon: FileBarChart });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
       case 'admin':
-        items.push({ id: 'analytics', label: 'Analitik Data', icon: BarChart2 });
-        items.push({ id: 'bakat', label: 'Radar Bakat', icon: Radar });
-        items.push({ id: 'applications', label: 'Semua Permohonan', icon: FileText });
-        items.push({ id: 'approvals', label: 'Pengurusan Kelulusan', icon: CheckSquare });
-        items.push({ id: 'presentations', label: 'Jadual Semakan', icon: Clock });
-        items.push({ id: 'reports', label: 'Arkib Laporan', icon: FileBarChart });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
-        items.push({ id: 'settings', label: 'Tetapan Sistem', icon: Settings });
+        eKesatuan.push({ id: 'analytics', label: 'Analitik Data', icon: BarChart2 });
+        eKesatuan.push({ id: 'applications', label: 'Semua Permohonan', icon: FileText });
+        eKesatuan.push({ id: 'approvals', label: 'Pengurusan Kelulusan', icon: CheckSquare });
+        eKesatuan.push({ id: 'presentations', label: 'Jadual Semakan', icon: Clock });
+        eKesatuan.push({ id: 'reports', label: 'Arkib Laporan', icon: FileBarChart });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        bakat.push({ id: 'bakat', label: 'Radar Bakat', icon: Radar });
+        bakat.push({ id: 'import', label: 'Import Excel', icon: FileSpreadsheet });
+        tetapan.push({ id: 'settings', label: 'Tetapan Sistem', icon: Settings });
         break;
       case 'ydp':
-        items.push({ id: 'approvals', label: 'Kelulusan Eksekutif', icon: CheckSquare });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'approvals', label: 'Kelulusan Eksekutif', icon: CheckSquare });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
       case 'tnc_hepa':
-        items.push({ id: 'approvals', label: 'Kelulusan TNC HEPA', icon: CheckSquare });
-        items.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
+        eKesatuan.push({ id: 'approvals', label: 'Kelulusan TNC HEPA', icon: CheckSquare });
+        eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
     }
-    return items;
+
+    const groups: NavGroup[] = [
+      { label: 'e-Kesatuan Mahasiswa', accent: 'blue', items: eKesatuan },
+      { label: 'Portal Bakat', accent: 'indigo', items: bakat },
+      { label: 'Tetapan Sistem', accent: 'blue', items: tetapan },
+    ];
+    return groups.filter((g) => g.items.length > 0);
   };
 
-  const navItems = getNavItems();
+  const navGroups = getNavGroups();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -395,7 +410,7 @@ export default function App() {
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Profil Bakat</h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Radar 16 kompetensi anda — setiap skor diterbitkan daripada bukti program yang disahkan.
+                  Bakat anda yang terbukti — setiap skor diterbitkan daripada bukti program yang disahkan.
                 </p>
               </div>
               <BakatProfile
@@ -411,6 +426,15 @@ export default function App() {
           );
         }
         return <TalentSearchModule />;
+      case 'import':
+        return currentUserRole === 'admin' ? (
+          <ExcelImportModule />
+        ) : (
+          <div className="bg-red-50 text-red-700 p-6 rounded-2xl border border-red-200 text-center">
+            <h3 className="font-bold text-lg mb-2">Akses Ditolak</h3>
+            <p>Hanya System Admin yang mempunyai akses ke halaman ini.</p>
+          </div>
+        );
       case 'applications':
         return <ApplicationModule currentUserRole={currentUserRole} applicantId={user.uid} />;
       case 'approvals':
@@ -669,22 +693,33 @@ export default function App() {
           </button>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setActiveTab(item.id);
-                setIsSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-left transition-all duration-200 ${
-                activeTab === item.id
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-              }`}
-            >
-              <item.icon className="w-5 h-5" /> {item.label}
-            </button>
+        <nav className="flex-1 p-4 space-y-5 overflow-y-auto">
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              <p className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                {group.label}
+              </p>
+              <div className="space-y-1.5">
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-left transition-all duration-200 ${
+                      activeTab === item.id
+                        ? group.accent === 'indigo'
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                          : 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5" /> {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
@@ -732,6 +767,7 @@ export default function App() {
                 {activeTab === 'dashboard' && 'Papan Pemuka Utama'}
                 {activeTab === 'profile' && 'Profil Pelajar'}
                 {activeTab === 'bakat' && 'Modul Bakat'}
+                {activeTab === 'import' && 'Import Data'}
                 {activeTab === 'applications' && 'Modul Permohonan'}
                 {activeTab === 'approvals' && 'Modul Kelulusan'}
                 {activeTab === 'reports' && 'Modul Pelaporan'}

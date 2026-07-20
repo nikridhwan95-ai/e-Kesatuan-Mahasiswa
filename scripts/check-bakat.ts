@@ -10,6 +10,7 @@ import {
 } from '../src/bakat/domain';
 import { deriveEvidence, qualifiesForEvidence, LEVEL_MAP, ROLE_MAP } from '../src/bakat/derive';
 import { bandOf, overallScore } from '../src/bakat/insights';
+import { normalizeDate, parseRows, dedupeKey } from '../src/services/importParser';
 import { Application, Report } from '../src/types';
 
 let failures = 0;
@@ -212,6 +213,59 @@ console.log('\nSkor keseluruhan & jalur:');
   assert('70 → baik', bandOf(70) === 'baik');
   assert('50 → berkembang', bandOf(50) === 'berkembang');
   assert('49.9 → perlu peningkatan', bandOf(49.9) === 'perlu');
+}
+
+console.log('\nParser Import Excel:');
+
+// 15) Baris sah menghasilkan satu program tanpa ralat.
+{
+  const baris = {
+    'Nama Pelajar': 'Sarah binti Ahmad',
+    'No. Matrik': 'a210001',
+    'Jawatan': 'Pengarah',
+    'Tajuk Program': 'Festival Zapin',
+    'Kategori': 'Kebudayaan',
+    'Peringkat': 'Kebangsaan',
+    'Tarikh Mula': '01/04/2026',
+    'Tarikh Tamat': '03/04/2026',
+    'Bajet Diluluskan (RM)': 8000,
+    'Bajet Disahkan (RM)': '6,800',
+    'Bilangan Peserta': 320,
+    'Kemahiran Insaniah': 'Kemahiran Kepimpinan; Skil Tidak Wujud',
+    'Objektif': 'demo',
+  };
+  const { programmes, issues } = parseRows([baris]);
+  assert('baris sah → 1 program', programmes.length === 1);
+  assert('tiada ralat pada baris sah', issues.every((i) => i.severity !== 'ralat'));
+  assert('matrik dinormalkan ke huruf besar', programmes[0]?.student.matric === 'A210001');
+  assert('tarikh hh/bb/tttt dinormalkan', programmes[0]?.startDate === '2026-04-01');
+  assert('bajet dengan koma dibaca', programmes[0]?.budgetVerified === 6800);
+  assert('kemahiran tidak dikenali dilangkau dengan amaran',
+    programmes[0]?.softSkills.length === 1 && issues.some((i) => i.severity === 'amaran'));
+}
+
+// 16) Baris tidak sah dilangkau dengan ralat.
+{
+  const { programmes, issues } = parseRows([
+    { 'Nama Pelajar': 'X', 'Jawatan': 'Pengarah', 'Tajuk Program': 'Y', 'Peringkat': 'Universiti', 'Tarikh Mula': '01/01/2026' }, // tiada matrik
+    { 'Nama Pelajar': 'X', 'No. Matrik': 'A1', 'Jawatan': 'Peserta', 'Tajuk Program': 'Y', 'Peringkat': 'Universiti', 'Tarikh Mula': '01/01/2026' }, // jawatan salah
+    { 'Nama Pelajar': 'X', 'No. Matrik': 'A2', 'Jawatan': 'Pengarah', 'Tajuk Program': 'Y', 'Peringkat': 'Daerah', 'Tarikh Mula': '01/01/2026' }, // peringkat salah
+  ]);
+  assert('baris tidak sah tidak menghasilkan program', programmes.length === 0);
+  assert('setiap baris tidak sah ada ralat', issues.filter((i) => i.severity === 'ralat').length >= 3);
+}
+
+// 17) Normalisasi tarikh: nombor siri Excel & ISO.
+{
+  assert('nombor siri Excel dinormalkan', normalizeDate(46113) === '2026-04-01');
+  assert('tarikh ISO diterima', normalizeDate('2026-04-01') === '2026-04-01');
+  assert('tarikh kosong → null', normalizeDate('') === null);
+}
+
+// 18) Kunci penduaan tidak sensitif huruf.
+{
+  assert('kunci penduaan konsisten',
+    dedupeKey('a210001', 'Festival Zapin', '2026-04-01') === dedupeKey('A210001', 'festival zapin', '2026-04-01'));
 }
 
 console.log(failures === 0 ? '\nSemua semakan Modul Bakat LULUS.' : `\n${failures} semakan GAGAL.`);
