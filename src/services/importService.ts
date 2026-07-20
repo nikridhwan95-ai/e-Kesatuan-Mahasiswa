@@ -9,7 +9,80 @@ import { supabase } from '../supabase';
 import { Application, Report, User } from '../types';
 import { getCurrentAcademicSession, getCurrentSemester } from '../utils/dateUtils';
 import { syncEvidenceForApplication } from '../bakat/evidenceService';
-import { ImportedProgramme, dedupeKey, importedStudentUid } from './importParser';
+import { ImportedProgramme, ImportedStudent, dedupeKey, importedStudentUid } from './importParser';
+
+export interface StudentImportResultRow {
+  student: ImportedStudent;
+  status: 'dicipta' | 'dikemas kini' | 'ralat';
+  detail: string;
+}
+
+// Import butiran pelajar: padankan melalui no. matrik — pelajar sedia ada
+// DIKEMAS KINI (hanya medan yang diisi dalam Excel), pelajar baharu dicipta.
+export async function importStudents(
+  students: ImportedStudent[],
+  onProgress?: (done: number, total: number) => void
+): Promise<StudentImportResultRow[]> {
+  const { data: existing, error } = await supabase.from('users').select('uid, matricNumber');
+  if (error) throw new Error(`Gagal memuat senarai pengguna: ${error.message}`);
+
+  const uidByMatric = new Map<string, string>();
+  for (const u of (existing ?? []) as Pick<User, 'uid' | 'matricNumber'>[]) {
+    if (u.matricNumber) uidByMatric.set(u.matricNumber.toUpperCase(), u.uid);
+  }
+
+  const results: StudentImportResultRow[] = [];
+  let done = 0;
+
+  for (const s of students) {
+    try {
+      const fields: Record<string, unknown> = {
+        name: s.name,
+        matricNumber: s.matric,
+        ...(s.email ? { email: s.email } : {}),
+        ...(s.faculty ? { faculty: s.faculty } : {}),
+        ...(s.college ? { college: s.college } : {}),
+        ...(s.studyYear ? { studyYear: s.studyYear } : {}),
+        ...(s.programme ? { programme: s.programme } : {}),
+        ...(s.phone ? { phoneNumber: s.phone } : {}),
+        ...(s.address ? { address: s.address } : {}),
+      };
+
+      const existingUid = uidByMatric.get(s.matric);
+      if (existingUid) {
+        const { error: updErr } = await supabase.from('users').update(fields).eq('uid', existingUid);
+        if (updErr) throw new Error(updErr.message);
+        results.push({ student: s, status: 'dikemas kini', detail: existingUid });
+      } else {
+        const uid = importedStudentUid(s.matric);
+        const { error: insErr } = await supabase.from('users').upsert(
+          {
+            uid,
+            role: 'student',
+            email: s.email ?? `${s.matric.toLowerCase()}@import.portal-bhep.upm.edu.my`,
+            createdAt: new Date().toISOString(),
+            ...fields,
+          },
+          { onConflict: 'uid' }
+        );
+        if (insErr) throw new Error(insErr.message);
+        uidByMatric.set(s.matric, uid);
+        results.push({ student: s, status: 'dicipta', detail: uid });
+      }
+    } catch (err) {
+      results.push({
+        student: s,
+        status: 'ralat',
+        detail: err instanceof Error ? err.message : 'Ralat tidak diketahui',
+      });
+    } finally {
+      done += 1;
+      onProgress?.(done, students.length);
+    }
+  }
+
+  return results;
+}
 
 export interface ImportResultRow {
   programme: ImportedProgramme;

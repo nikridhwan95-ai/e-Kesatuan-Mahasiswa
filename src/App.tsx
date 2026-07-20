@@ -20,12 +20,13 @@ import LetterSettingsModule from './components/settings/LetterSettingsModule';
 import DataAnalyticsModule from './components/admin/DataAnalyticsModule';
 import BakatProfile from './components/bakat/BakatProfile';
 import TalentSearchModule from './components/bakat/TalentSearchModule';
+import StudentDirectoryModule from './components/bakat/StudentDirectoryModule';
 import ExcelImportModule from './components/import/ExcelImportModule';
 import { Application, UserRole, User as UserType } from './types';
 import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_USERNAME, PORTAL_ADMIN_EMAIL } from './supabase';
 import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/dataService';
 
-type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat' | 'import';
+type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat' | 'students' | 'import';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -374,6 +375,7 @@ export default function App() {
         eKesatuan.push({ id: 'reports', label: 'Arkib Laporan', icon: FileBarChart });
         eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         bakat.push({ id: 'bakat', label: 'Radar Bakat', icon: Radar });
+        bakat.push({ id: 'students', label: 'Profil Pelajar', icon: User });
         tetapan.push({ id: 'import', label: 'Import Data (Excel)', icon: FileSpreadsheet });
         tetapan.push({ id: 'settings', label: 'Tetapan Sistem', icon: Settings });
         break;
@@ -426,6 +428,15 @@ export default function App() {
           );
         }
         return <TalentSearchModule />;
+      case 'students':
+        return currentUserRole === 'admin' ? (
+          <StudentDirectoryModule />
+        ) : (
+          <div className="bg-red-50 text-red-700 p-6 rounded-2xl border border-red-200 text-center">
+            <h3 className="font-bold text-lg mb-2">Akses Ditolak</h3>
+            <p>Hanya System Admin yang mempunyai akses ke halaman ini.</p>
+          </div>
+        );
       case 'import':
         return currentUserRole === 'admin' ? (
           <ExcelImportModule />
@@ -768,6 +779,7 @@ export default function App() {
                 {activeTab === 'profile' && 'Profil Pelajar'}
                 {activeTab === 'bakat' && 'Modul Bakat'}
                 {activeTab === 'import' && 'Import Data'}
+                {activeTab === 'students' && 'Profil Pelajar'}
                 {activeTab === 'analytics' && 'Analitik Data'}
                 {activeTab === 'archive' && 'Arkib Kertas Kerja'}
                 {activeTab === 'settings' && 'Tetapan'}

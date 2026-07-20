@@ -99,6 +99,13 @@ const HEADER_KEY: Record<string, keyof RawRow> = {
   email: 'email',
   fakulti: 'faculty',
   kolej: 'college',
+  tahun: 'studyYear',
+  tahunpengajian: 'studyYear',
+  programpengajian: 'programme',
+  notelefon: 'phone',
+  telefon: 'phone',
+  nombortelefon: 'phone',
+  alamat: 'address',
   jawatan: 'jawatan',
   tajukprogram: 'title',
   tajuk: 'title',
@@ -124,6 +131,10 @@ interface RawRow {
   email?: unknown;
   faculty?: unknown;
   college?: unknown;
+  studyYear?: unknown;
+  programme?: unknown;
+  phone?: unknown;
+  address?: unknown;
   jawatan?: unknown;
   title?: unknown;
   kategori?: unknown;
@@ -264,6 +275,85 @@ export function parseRows(sheetRows: Record<string, unknown>[]): {
   });
 
   return { programmes, issues };
+}
+
+// ── Import butiran pelajar ──────────────────────────────────────────────────
+
+export interface ImportedStudent {
+  name: string;
+  matric: string;
+  email?: string;
+  faculty?: string;
+  college?: string;
+  studyYear?: string;
+  programme?: string;
+  phone?: string;
+  address?: string;
+}
+
+export const STUDENT_TEMPLATE_HEADERS = [
+  'Nama Pelajar',
+  'No. Matrik',
+  'E-mel',
+  'Fakulti',
+  'Kolej',
+  'Tahun',
+  'Program Pengajian',
+  'No. Telefon',
+  'Alamat',
+] as const;
+
+export const STUDENT_TEMPLATE_EXAMPLE_ROW = [
+  'Sarah binti Ahmad',
+  'A210001',
+  'sarah@siswa.upm.edu.my',
+  'Fakulti Kejuruteraan',
+  'Kolej Canselor',
+  '3',
+  'Ijazah Sarjana Muda Kejuruteraan Mekanikal',
+  '+60 11-1234 5678',
+  'No. 12, Jalan Serdang Perdana 3, 43400 Seri Kembangan, Selangor',
+];
+
+export function parseStudentRows(sheetRows: Record<string, unknown>[]): {
+  students: ImportedStudent[];
+  issues: RowIssue[];
+} {
+  const students: ImportedStudent[] = [];
+  const issues: RowIssue[] = [];
+  const seenMatric = new Set<string>();
+
+  sheetRows.forEach((sheetRow, i) => {
+    const rowNo = i + 2; // baris 1 = kepala lajur
+    const r = mapHeaders(sheetRow);
+
+    const name = str(r.name);
+    const matric = str(r.matric).toUpperCase();
+
+    if (!name) issues.push({ row: rowNo, severity: 'ralat', message: 'Nama Pelajar diperlukan' });
+    if (!matric) issues.push({ row: rowNo, severity: 'ralat', message: 'No. Matrik diperlukan' });
+    if (!name || !matric) return;
+
+    if (seenMatric.has(matric)) {
+      issues.push({ row: rowNo, severity: 'amaran', message: `No. Matrik ${matric} berulang dalam fail — baris ini dilangkau` });
+      return;
+    }
+    seenMatric.add(matric);
+
+    students.push({
+      name,
+      matric,
+      email: str(r.email) || undefined,
+      faculty: str(r.faculty) || undefined,
+      college: str(r.college) || undefined,
+      studyYear: str(r.studyYear) || undefined,
+      programme: str(r.programme) || undefined,
+      phone: str(r.phone) || undefined,
+      address: str(r.address) || undefined,
+    });
+  });
+
+  return { students, issues };
 }
 
 // Kunci penduaan: program yang sama tidak diimport dua kali.

@@ -23,9 +23,17 @@ create table if not exists public.users (
   "phoneNumber"  text,
   college        text,
   faculty        text,
+  "studyYear"    text,
+  programme      text,
+  address        text,
   positions      jsonb,
   "createdAt"    text
 );
+
+-- Lajur tambahan untuk pemasangan sedia ada (selamat diulang).
+alter table public.users add column if not exists "studyYear" text;
+alter table public.users add column if not exists programme text;
+alter table public.users add column if not exists address text;
 
 create table if not exists public.applications (
   id                      text primary key,

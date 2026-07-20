@@ -7,39 +7,74 @@ import {
   Info,
   Loader2,
   Upload,
+  Users2,
   XCircle,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
   ImportedProgramme,
+  ImportedStudent,
   RowIssue,
   TEMPLATE_HEADERS,
   TEMPLATE_EXAMPLE_ROW,
+  STUDENT_TEMPLATE_HEADERS,
+  STUDENT_TEMPLATE_EXAMPLE_ROW,
   parseRows,
+  parseStudentRows,
 } from '../../services/importParser';
-import { ImportResultRow, importProgrammes } from '../../services/importService';
+import {
+  ImportResultRow,
+  StudentImportResultRow,
+  importProgrammes,
+  importStudents,
+} from '../../services/importService';
 
+type Mode = 'program' | 'pelajar';
 type Stage = 'idle' | 'preview' | 'importing' | 'done';
 
-// Import Excel — muat naik senarai program lepas dan sistem mencipta rekod
-// pelajar, permohonan (Lulus Sepenuhnya), laporan (Disahkan) dan bukti bakat
-// secara automatik melalui enjin derivation sebenar.
+// Import Data (Excel) — dua mod:
+// 1. Program Lepas: cipta pelajar + permohonan (Lulus Sepenuhnya) + laporan
+//    (Disahkan); bukti bakat dijana automatik melalui enjin derivation sebenar.
+// 2. Butiran Pelajar: cipta / kemas kini rekod pelajar (padanan no. matrik).
 export default function ExcelImportModule() {
+  const [mode, setMode] = useState<Mode>('program');
   const [stage, setStage] = useState<Stage>('idle');
   const [fileName, setFileName] = useState('');
   const [programmes, setProgrammes] = useState<ImportedProgramme[]>([]);
+  const [students, setStudents] = useState<ImportedStudent[]>([]);
   const [issues, setIssues] = useState<RowIssue[]>([]);
   const [parseError, setParseError] = useState('');
   const [progress, setProgress] = useState({ done: 0, total: 0 });
-  const [results, setResults] = useState<ImportResultRow[]>([]);
+  const [programmeResults, setProgrammeResults] = useState<ImportResultRow[]>([]);
+  const [studentResults, setStudentResults] = useState<StudentImportResultRow[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const reset = () => {
+    setStage('idle');
+    setFileName('');
+    setProgrammes([]);
+    setStudents([]);
+    setIssues([]);
+    setProgrammeResults([]);
+    setStudentResults([]);
+    setParseError('');
+    setProgress({ done: 0, total: 0 });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    reset();
+  };
+
   const handleDownloadTemplate = () => {
-    const ws = XLSX.utils.aoa_to_sheet([[...TEMPLATE_HEADERS], TEMPLATE_EXAMPLE_ROW]);
-    ws['!cols'] = TEMPLATE_HEADERS.map((h) => ({ wch: Math.max(h.length + 2, 14) }));
+    const headers = mode === 'program' ? [...TEMPLATE_HEADERS] : [...STUDENT_TEMPLATE_HEADERS];
+    const example = mode === 'program' ? TEMPLATE_EXAMPLE_ROW : STUDENT_TEMPLATE_EXAMPLE_ROW;
+    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+    ws['!cols'] = headers.map((h) => ({ wch: Math.max(String(h).length + 2, 14) }));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Program');
-    XLSX.writeFile(wb, 'templat-import-program.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, mode === 'program' ? 'Program' : 'Pelajar');
+    XLSX.writeFile(wb, mode === 'program' ? 'templat-import-program.xlsx' : 'templat-import-pelajar.xlsx');
   };
 
   const handleFile = async (file: File) => {
@@ -51,9 +86,15 @@ export default function ExcelImportModule() {
       const sheet = wb.Sheets[wb.SheetNames[0]];
       if (!sheet) throw new Error('Fail tidak mengandungi sebarang helaian.');
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-      const parsed = parseRows(rows);
-      setProgrammes(parsed.programmes);
-      setIssues(parsed.issues);
+      if (mode === 'program') {
+        const parsed = parseRows(rows);
+        setProgrammes(parsed.programmes);
+        setIssues(parsed.issues);
+      } else {
+        const parsed = parseStudentRows(rows);
+        setStudents(parsed.students);
+        setIssues(parsed.issues);
+      }
       setStage('preview');
     } catch (err) {
       console.error('Error parsing Excel:', err);
@@ -64,10 +105,16 @@ export default function ExcelImportModule() {
 
   const handleImport = async () => {
     setStage('importing');
-    setProgress({ done: 0, total: programmes.length });
+    const total = mode === 'program' ? programmes.length : students.length;
+    setProgress({ done: 0, total });
     try {
-      const res = await importProgrammes(programmes, (done, total) => setProgress({ done, total }));
-      setResults(res);
+      if (mode === 'program') {
+        const res = await importProgrammes(programmes, (done, t) => setProgress({ done, total: t }));
+        setProgrammeResults(res);
+      } else {
+        const res = await importStudents(students, (done, t) => setProgress({ done, total: t }));
+        setStudentResults(res);
+      }
       setStage('done');
     } catch (err) {
       console.error('Error importing:', err);
@@ -76,22 +123,18 @@ export default function ExcelImportModule() {
     }
   };
 
-  const reset = () => {
-    setStage('idle');
-    setFileName('');
-    setProgrammes([]);
-    setIssues([]);
-    setResults([]);
-    setParseError('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
   const errors = issues.filter((i) => i.severity === 'ralat');
   const warnings = issues.filter((i) => i.severity === 'amaran');
-  const created = results.filter((r) => r.status === 'dicipta');
-  const skipped = results.filter((r) => r.status === 'dilangkau');
-  const failed = results.filter((r) => r.status === 'ralat');
-  const totalBukti = results.reduce((a, r) => a + r.buktiCreated, 0);
+  const validCount = mode === 'program' ? programmes.length : students.length;
+
+  const created = programmeResults.filter((r) => r.status === 'dicipta');
+  const skipped = programmeResults.filter((r) => r.status === 'dilangkau');
+  const failedProg = programmeResults.filter((r) => r.status === 'ralat');
+  const totalBukti = programmeResults.reduce((a, r) => a + r.buktiCreated, 0);
+
+  const sCreated = studentResults.filter((r) => r.status === 'dicipta');
+  const sUpdated = studentResults.filter((r) => r.status === 'dikemas kini');
+  const sFailed = studentResults.filter((r) => r.status === 'ralat');
 
   return (
     <div className="space-y-6">
@@ -101,9 +144,8 @@ export default function ExcelImportModule() {
             <FileSpreadsheet className="w-6 h-6 text-blue-600" /> Import Data (Excel)
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Masukkan rekod program e-Kesatuan yang lepas secara pukal tanpa kemasukan manual —
-            setiap baris mencipta rekod pelajar, permohonan (Lulus Sepenuhnya) dan laporan
-            (Disahkan) dalam sistem, dan bukti bakat pelajar dijana secara automatik.
+            Masukkan data secara pukal tanpa kemasukan manual — pilih jenis data di bawah,
+            muat turun templat, isi dan muat naik.
           </p>
         </div>
         <button
@@ -114,6 +156,40 @@ export default function ExcelImportModule() {
         </button>
       </div>
 
+      {/* Pemilih jenis import */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button
+          onClick={() => switchMode('program')}
+          className={`text-left rounded-2xl border-2 p-4 transition-colors ${
+            mode === 'program' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-200 bg-white hover:border-slate-300'
+          }`}
+        >
+          <p className="font-bold text-slate-900 flex items-center gap-2">
+            <FileSpreadsheet className={`w-4 h-4 ${mode === 'program' ? 'text-blue-600' : 'text-slate-400'}`} />
+            Program Lepas
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Satu baris = satu program selesai. Cipta permohonan (Lulus Sepenuhnya) + laporan
+            (Disahkan); bukti bakat dijana automatik.
+          </p>
+        </button>
+        <button
+          onClick={() => switchMode('pelajar')}
+          className={`text-left rounded-2xl border-2 p-4 transition-colors ${
+            mode === 'pelajar' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-200 bg-white hover:border-slate-300'
+          }`}
+        >
+          <p className="font-bold text-slate-900 flex items-center gap-2">
+            <Users2 className={`w-4 h-4 ${mode === 'pelajar' ? 'text-blue-600' : 'text-slate-400'}`} />
+            Butiran Pelajar
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Satu baris = satu pelajar (nama, matrik, fakulti, kolej, tahun, program pengajian,
+            telefon, alamat). Pelajar sedia ada dikemas kini melalui padanan no. matrik.
+          </p>
+        </button>
+      </div>
+
       {parseError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
           {parseError}
@@ -121,7 +197,7 @@ export default function ExcelImportModule() {
       )}
 
       {stage === 'idle' && (
-        <label className="block bg-white rounded-2xl shadow-sm border-2 border-dashed border-slate-300 p-12 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors">
+        <label className="block bg-white rounded-2xl shadow-sm border-2 border-dashed border-slate-300 p-12 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors">
           <input
             ref={fileInputRef}
             type="file"
@@ -130,10 +206,11 @@ export default function ExcelImportModule() {
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
           />
           <Upload className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <p className="font-display text-lg font-bold text-slate-900">Pilih fail Excel (.xlsx)</p>
+          <p className="font-display text-lg font-bold text-slate-900">
+            Pilih fail Excel {mode === 'program' ? 'program lepas' : 'butiran pelajar'} (.xlsx)
+          </p>
           <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-            Satu baris = satu program yang telah selesai. Gunakan templat di atas untuk format
-            lajur yang betul. Fail .xls dan .csv juga disokong.
+            Gunakan templat di atas untuk format lajur yang betul. Fail .xls dan .csv juga disokong.
           </p>
         </label>
       )}
@@ -145,7 +222,7 @@ export default function ExcelImportModule() {
               <div>
                 <h3 className="font-display text-lg font-bold text-slate-900">Pratonton: {fileName}</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {programmes.length} program sah dikesan
+                  {validCount} {mode === 'program' ? 'program' : 'pelajar'} sah dikesan
                   {errors.length > 0 && ` · ${errors.length} ralat (baris terlibat dilangkau)`}
                   {warnings.length > 0 && ` · ${warnings.length} amaran`}
                 </p>
@@ -159,10 +236,10 @@ export default function ExcelImportModule() {
                 </button>
                 <button
                   onClick={handleImport}
-                  disabled={programmes.length === 0}
-                  className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-600/20 disabled:opacity-50"
+                  disabled={validCount === 0}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20 disabled:opacity-50"
                 >
-                  <Upload className="w-4 h-4" /> Import {programmes.length} Program
+                  <Upload className="w-4 h-4" /> Import {validCount} {mode === 'program' ? 'Program' : 'Pelajar'}
                 </button>
               </div>
             </div>
@@ -183,65 +260,110 @@ export default function ExcelImportModule() {
             )}
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
-                    <th className="py-2 pr-3 font-semibold">Pelajar</th>
-                    <th className="py-2 pr-3 font-semibold">Jawatan</th>
-                    <th className="py-2 pr-3 font-semibold">Program</th>
-                    <th className="py-2 pr-3 font-semibold">Kategori · Peringkat</th>
-                    <th className="py-2 pr-3 font-semibold">Tarikh</th>
-                    <th className="py-2 font-semibold text-right">Bajet Disahkan</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {programmes.map((p, i) => (
-                    <tr key={i} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2.5 pr-3">
-                        <p className="font-semibold text-slate-900">{p.student.name}</p>
-                        <p className="text-xs text-slate-500">{p.student.matric}</p>
-                      </td>
-                      <td className="py-2.5 pr-3 text-slate-700">{p.jawatan}</td>
-                      <td className="py-2.5 pr-3 text-slate-700">{p.title}</td>
-                      <td className="py-2.5 pr-3 text-slate-500 text-xs">{p.kategori} · {p.peringkat}</td>
-                      <td className="py-2.5 pr-3 tabular-nums text-slate-500 text-xs">{p.startDate}</td>
-                      <td className="py-2.5 text-right tabular-nums text-slate-700">
-                        {p.budgetVerified ? `RM${p.budgetVerified.toLocaleString('ms-MY')}` : '—'}
-                      </td>
+              {mode === 'program' ? (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+                      <th className="py-2 pr-3 font-semibold">Pelajar</th>
+                      <th className="py-2 pr-3 font-semibold">Jawatan</th>
+                      <th className="py-2 pr-3 font-semibold">Program</th>
+                      <th className="py-2 pr-3 font-semibold">Kategori · Peringkat</th>
+                      <th className="py-2 pr-3 font-semibold">Tarikh</th>
+                      <th className="py-2 font-semibold text-right">Bajet Disahkan</th>
                     </tr>
-                  ))}
-                  {programmes.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500 italic">
-                        Tiada baris sah — sila betulkan ralat di atas dan muat naik semula.
-                      </td>
+                  </thead>
+                  <tbody>
+                    {programmes.map((p, i) => (
+                      <tr key={i} className="border-b border-slate-100 last:border-0">
+                        <td className="py-2.5 pr-3">
+                          <p className="font-semibold text-slate-900">{p.student.name}</p>
+                          <p className="text-xs text-slate-500">{p.student.matric}</p>
+                        </td>
+                        <td className="py-2.5 pr-3 text-slate-700">{p.jawatan}</td>
+                        <td className="py-2.5 pr-3 text-slate-700">{p.title}</td>
+                        <td className="py-2.5 pr-3 text-slate-500 text-xs">{p.kategori} · {p.peringkat}</td>
+                        <td className="py-2.5 pr-3 tabular-nums text-slate-500 text-xs">{p.startDate}</td>
+                        <td className="py-2.5 text-right tabular-nums text-slate-700">
+                          {p.budgetVerified ? `RM${p.budgetVerified.toLocaleString('ms-MY')}` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                    {programmes.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-500 italic">
+                          Tiada baris sah — sila betulkan ralat di atas dan muat naik semula.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+                      <th className="py-2 pr-3 font-semibold">Pelajar</th>
+                      <th className="py-2 pr-3 font-semibold">Fakulti · Kolej</th>
+                      <th className="py-2 pr-3 font-semibold">Tahun</th>
+                      <th className="py-2 pr-3 font-semibold">Program Pengajian</th>
+                      <th className="py-2 font-semibold">Telefon</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {students.map((s, i) => (
+                      <tr key={i} className="border-b border-slate-100 last:border-0">
+                        <td className="py-2.5 pr-3">
+                          <p className="font-semibold text-slate-900">{s.name}</p>
+                          <p className="text-xs text-slate-500">{s.matric}{s.email ? ` · ${s.email}` : ''}</p>
+                        </td>
+                        <td className="py-2.5 pr-3 text-slate-600 text-xs">
+                          {[s.faculty, s.college].filter(Boolean).join(' · ') || '—'}
+                        </td>
+                        <td className="py-2.5 pr-3 tabular-nums text-slate-700">{s.studyYear ?? '—'}</td>
+                        <td className="py-2.5 pr-3 text-slate-600 text-xs">{s.programme ?? '—'}</td>
+                        <td className="py-2.5 text-slate-600 text-xs">{s.phone ?? '—'}</td>
+                      </tr>
+                    ))}
+                    {students.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-500 italic">
+                          Tiada baris sah — sila betulkan ralat di atas dan muat naik semula.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-xl text-sm flex items-start gap-2">
             <Info className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>
-              Setiap program akan dicipta sebagai permohonan <b>Lulus Sepenuhnya</b> dengan laporan{' '}
-              <b>Disahkan</b>, dan bukti bakat pelajar dijana serta-merta. Program yang sudah wujud
-              (matrik + tajuk + tarikh sama) akan dilangkau — selamat diimport berulang kali.
-            </span>
+            {mode === 'program' ? (
+              <span>
+                Setiap program akan dicipta sebagai permohonan <b>Lulus Sepenuhnya</b> dengan laporan{' '}
+                <b>Disahkan</b>, dan bukti bakat pelajar dijana serta-merta. Program yang sudah wujud
+                (matrik + tajuk + tarikh sama) akan dilangkau — selamat diimport berulang kali.
+              </span>
+            ) : (
+              <span>
+                Pelajar dipadankan melalui <b>no. matrik</b>: yang sedia ada akan <b>dikemas kini</b>{' '}
+                (hanya medan yang diisi dalam Excel), yang baharu akan <b>dicipta</b>. Selamat
+                diimport berulang kali.
+              </span>
+            )}
           </div>
         </>
       )}
 
       {stage === 'importing' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mx-auto mb-4" />
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="font-display text-lg font-bold text-slate-900">
-            Mengimport program {progress.done}/{progress.total}...
+            Mengimport {mode === 'program' ? 'program' : 'pelajar'} {progress.done}/{progress.total}...
           </p>
           <div className="max-w-sm mx-auto mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
             <div
-              className="h-full bg-indigo-500 transition-all"
+              className="h-full bg-blue-500 transition-all"
               style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
             />
           </div>
@@ -260,47 +382,89 @@ export default function ExcelImportModule() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-2xl font-bold font-display tabular-nums text-emerald-700">{created.length}</p>
-              <p className="text-xs font-semibold text-emerald-700">Program dicipta</p>
-            </div>
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-              <p className="text-2xl font-bold font-display tabular-nums text-indigo-700">{totalBukti}</p>
-              <p className="text-xs font-semibold text-indigo-700">Bukti bakat dijana</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-2xl font-bold font-display tabular-nums text-slate-700">{skipped.length}</p>
-              <p className="text-xs font-semibold text-slate-600">Dilangkau (sudah wujud)</p>
-            </div>
-            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-              <p className="text-2xl font-bold font-display tabular-nums text-red-700">{failed.length}</p>
-              <p className="text-xs font-semibold text-red-700">Gagal</p>
-            </div>
-          </div>
-
-          <div className="space-y-1.5 max-h-96 overflow-y-auto">
-            {results.map((r, i) => (
-              <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                {r.status === 'dicipta' ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                ) : r.status === 'dilangkau' ? (
-                  <Info className="w-4 h-4 text-slate-400 shrink-0" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-red-600 shrink-0" />
-                )}
-                <span className="font-medium text-slate-900">{r.programme.title}</span>
-                <span className="text-xs text-slate-500">({r.programme.student.name})</span>
-                <span className="ml-auto text-xs text-slate-500">
-                  {r.status === 'dicipta'
-                    ? `${r.detail} · ${r.buktiCreated} bukti`
-                    : r.detail}
-                </span>
+          {mode === 'program' ? (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <ResultStat value={created.length} label="Program dicipta" cls="border-emerald-200 bg-emerald-50 text-emerald-700" />
+                <ResultStat value={totalBukti} label="Bukti bakat dijana" cls="border-indigo-200 bg-indigo-50 text-indigo-700" />
+                <ResultStat value={skipped.length} label="Dilangkau (sudah wujud)" cls="border-slate-200 bg-slate-50 text-slate-600" />
+                <ResultStat value={failedProg.length} label="Gagal" cls="border-red-200 bg-red-50 text-red-700" />
               </div>
-            ))}
-          </div>
+              <div className="space-y-1.5 max-h-96 overflow-y-auto">
+                {programmeResults.map((r, i) => (
+                  <ResultRow
+                    key={i}
+                    ok={r.status === 'dicipta'}
+                    neutral={r.status === 'dilangkau'}
+                    title={r.programme.title}
+                    subtitle={r.programme.student.name}
+                    detail={r.status === 'dicipta' ? `${r.detail} · ${r.buktiCreated} bukti` : r.detail}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <ResultStat value={sCreated.length} label="Pelajar dicipta" cls="border-emerald-200 bg-emerald-50 text-emerald-700" />
+                <ResultStat value={sUpdated.length} label="Dikemas kini" cls="border-blue-200 bg-blue-50 text-blue-700" />
+                <ResultStat value={sFailed.length} label="Gagal" cls="border-red-200 bg-red-50 text-red-700" />
+              </div>
+              <div className="space-y-1.5 max-h-96 overflow-y-auto">
+                {studentResults.map((r, i) => (
+                  <ResultRow
+                    key={i}
+                    ok={r.status === 'dicipta'}
+                    neutral={r.status === 'dikemas kini'}
+                    title={r.student.name}
+                    subtitle={r.student.matric}
+                    detail={r.status === 'ralat' ? r.detail : r.status}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ResultStat({ value, label, cls }: { value: number; label: string; cls: string }) {
+  return (
+    <div className={`rounded-xl border p-4 ${cls}`}>
+      <p className="text-2xl font-bold font-display tabular-nums">{value}</p>
+      <p className="text-xs font-semibold">{label}</p>
+    </div>
+  );
+}
+
+function ResultRow({
+  ok,
+  neutral,
+  title,
+  subtitle,
+  detail,
+}: {
+  key?: string | number; // @types/react tiada dalam projek ini; 'key' perlu diisytihar
+  ok: boolean;
+  neutral: boolean;
+  title: string;
+  subtitle: string;
+  detail: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm">
+      {ok ? (
+        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+      ) : neutral ? (
+        <Info className="w-4 h-4 text-blue-500 shrink-0" />
+      ) : (
+        <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+      )}
+      <span className="font-medium text-slate-900">{title}</span>
+      <span className="text-xs text-slate-500">({subtitle})</span>
+      <span className="ml-auto text-xs text-slate-500">{detail}</span>
     </div>
   );
 }

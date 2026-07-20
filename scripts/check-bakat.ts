@@ -10,7 +10,7 @@ import {
 } from '../src/bakat/domain';
 import { deriveEvidence, qualifiesForEvidence, LEVEL_MAP, ROLE_MAP } from '../src/bakat/derive';
 import { bandOf, overallScore } from '../src/bakat/insights';
-import { normalizeDate, parseRows, dedupeKey } from '../src/services/importParser';
+import { normalizeDate, parseRows, parseStudentRows, dedupeKey } from '../src/services/importParser';
 import { Application, Report } from '../src/types';
 
 let failures = 0;
@@ -266,6 +266,41 @@ console.log('\nParser Import Excel:');
 {
   assert('kunci penduaan konsisten',
     dedupeKey('a210001', 'Festival Zapin', '2026-04-01') === dedupeKey('A210001', 'festival zapin', '2026-04-01'));
+}
+
+console.log('\nParser Import Butiran Pelajar:');
+
+// 19) Baris pelajar sah + medan pilihan dipetakan.
+{
+  const { students, issues } = parseStudentRows([
+    {
+      'Nama Pelajar': 'Sarah binti Ahmad',
+      'No. Matrik': 'a210001',
+      'E-mel': 'sarah@siswa.upm.edu.my',
+      'Fakulti': 'Fakulti Kejuruteraan',
+      'Kolej': 'Kolej Canselor',
+      'Tahun': 3,
+      'Program Pengajian': 'Ijazah Sarjana Muda Kejuruteraan Mekanikal',
+      'No. Telefon': '+60 11-1234 5678',
+      'Alamat': 'Seri Kembangan, Selangor',
+    },
+  ]);
+  assert('baris pelajar sah → 1 pelajar', students.length === 1 && issues.length === 0);
+  assert('matrik pelajar dinormalkan', students[0]?.matric === 'A210001');
+  assert('tahun & alamat dipetakan', students[0]?.studyYear === '3' && students[0]?.address === 'Seri Kembangan, Selangor');
+  assert('telefon dipetakan', students[0]?.phone === '+60 11-1234 5678');
+}
+
+// 20) Baris tanpa matrik dilangkau; matrik berulang dalam fail dilangkau dengan amaran.
+{
+  const { students, issues } = parseStudentRows([
+    { 'Nama Pelajar': 'X' }, // tiada matrik
+    { 'Nama Pelajar': 'Y', 'No. Matrik': 'A1' },
+    { 'Nama Pelajar': 'Y2', 'No. Matrik': 'a1' }, // berulang (huruf kecil)
+  ]);
+  assert('hanya baris sah diterima', students.length === 1);
+  assert('tiada matrik → ralat', issues.some((i) => i.severity === 'ralat'));
+  assert('matrik berulang → amaran', issues.some((i) => i.severity === 'amaran' && i.message.includes('berulang')));
 }
 
 console.log(failures === 0 ? '\nSemua semakan Modul Bakat LULUS.' : `\n${failures} semakan GAGAL.`);
