@@ -334,7 +334,7 @@ export default function ApplicationModule({ currentUserRole, applicantId }: Appl
     }
   };
 
-  // Filter apps for student view (only show their own) - handled by firestore query now
+  // Paparan pelajar sudah ditapis oleh pertanyaan dataService (applicantId).
   const displayedApps = applications;
 
   const overlays = (

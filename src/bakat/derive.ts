@@ -64,8 +64,7 @@ export function qualifiesForEvidence(app: Application, report: Report | undefine
 }
 
 export function evidenceId(appId: string, sourceType: string, competency: CompetencyCode): string {
-  // Aksara '/' tidak dibenarkan dalam ID dokumen Firestore; ID permohonan
-  // e-Kesatuan (cth "KM.25-26.001") selamat digunakan terus.
+  // ID permohonan e-Kesatuan (cth "KM.25-26.001") selamat digunakan terus.
   return `${appId}__${sourceType}__${competency}`;
 }
 

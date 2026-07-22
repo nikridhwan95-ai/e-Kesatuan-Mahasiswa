@@ -15,7 +15,6 @@ import ArchiveModule from './components/archive/ArchiveModule';
 import ReviewModule from './components/review/ReviewModule';
 import CategorySettings from './components/admin/CategorySettings';
 import OrganizationSettings from './components/admin/OrganizationSettings';
-import FacultyCollegeSettings from './components/admin/FacultyCollegeSettings';
 import LetterSettingsModule from './components/settings/LetterSettingsModule';
 import DataAnalyticsModule from './components/admin/DataAnalyticsModule';
 import BakatProfile from './components/bakat/BakatProfile';
@@ -243,19 +242,6 @@ export default function App() {
     } catch (error) {
       console.error("Error deleting all applications:", error);
       setIsDeleting(false);
-    }
-  };
-
-  const handleRoleChange = async (newRole: UserRole) => {
-    if (user && userData) {
-      try {
-        await updateUserProfile(user.uid, { role: newRole });
-        showNotification(`Peranan anda telah dikemas kini kepada ${newRole}.`, 'success');
-        await loadProfile(user);
-      } catch (error) {
-        console.error("Failed to update role:", error);
-        showNotification("Failed to update role. Check console for details.", 'error');
-      }
     }
   };
 

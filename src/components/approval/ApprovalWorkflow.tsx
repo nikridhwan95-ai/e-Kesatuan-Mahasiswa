@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Application, ApplicationStatus, UserRole } from '../../types';
-import { CheckCircle, XCircle, Clock, FileText, AlertTriangle, Calendar, Sparkles } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, FileText, AlertTriangle, Calendar } from 'lucide-react';
 
 interface ApprovalWorkflowProps {
   application: Application;
@@ -73,22 +73,6 @@ export default function ApprovalWorkflow({
           </div>
         )}
       </div>
-
-      {/* AI Summary Section (Visible to YDP) */}
-      {(currentUserRole === 'ydp') && application.aiSummary && (
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 rounded-2xl p-6 space-y-4 shadow-lg shadow-slate-900/10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
-          <div className="flex items-center gap-2 text-amber-400 font-bold font-display tracking-wide relative z-10">
-            <Sparkles className="w-5 h-5" />
-            Ringkasan Eksekutif (Janaan AI)
-          </div>
-          <div className="text-sm text-slate-300 space-y-3 relative z-10 leading-relaxed">
-            <p><strong className="text-white">Ringkasan:</strong> {application.aiSummary.executiveSummary}</p>
-            <p><strong className="text-white">Analisis Bajet:</strong> {application.aiSummary.budgetAnalysis}</p>
-            <p><strong className="text-white">Impak:</strong> {application.aiSummary.impact}</p>
-          </div>
-        </div>
-      )}
 
       {/* Action Area */}
       {canAct() ? (

@@ -1,6 +1,5 @@
-// Lapisan data Supabase (Postgres + Storage) — pengganti firestoreService.
-// API fungsi dikekalkan SAMA seperti versi Firestore supaya semua modul UI
-// tidak perlu diubah. Kawalan akses dikuatkuasakan oleh RLS (supabase/schema.sql).
+// Lapisan data Supabase (Postgres + Storage) — SEMUA akses DB e-Kesatuan
+// melalui fail ini. Kawalan akses dikuatkuasakan oleh RLS (supabase/schema.sql).
 
 import { supabase } from '../supabase';
 import { User, Application, Report, PresentationSession, UserRole } from '../types';

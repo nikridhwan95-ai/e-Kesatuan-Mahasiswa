@@ -42,11 +42,6 @@ export interface Application {
   presentationSessionId?: string;
   presentationDate?: string;
   presentationRoom?: number;
-  aiSummary?: {
-    executiveSummary: string;
-    budgetAnalysis: string;
-    impact: string;
-  };
   reviewerComment?: string;
   approvedAmount?: number;
   createdAt: string;
