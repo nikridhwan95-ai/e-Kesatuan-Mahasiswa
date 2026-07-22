@@ -576,7 +576,7 @@ export default function DataAnalyticsModule() {
                         <Cell key={d.name} fill={d.hex} stroke="#ffffff" strokeWidth={2} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number, name: string) => [`${v} aktiviti`, name]} />
+                    <Tooltip formatter={(v, name) => [`${Number(v)} aktiviti`, String(name)]} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -764,7 +764,7 @@ export default function DataAnalyticsModule() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
                 <YAxis axisLine={false} tickLine={false} tickFormatter={fmtRMShort} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(v: number) => `RM ${fmtRM(v)}`} />
+                <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(v) => `RM ${fmtRM(Number(v))}`} />
                 <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: 12 }} />
                 <Bar name="Kewangan Diluluskan" dataKey="approved" fill={APPROVED_COLOR} radius={[4, 4, 0, 0]} isAnimationActive={false} />
                 <Bar name="Kewangan Digunakan" dataKey="used" fill={USED_COLOR} radius={[4, 4, 0, 0]} isAnimationActive={false} />

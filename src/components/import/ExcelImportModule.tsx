@@ -446,7 +446,6 @@ function ResultRow({
   subtitle,
   detail,
 }: {
-  key?: string | number; // @types/react tiada dalam projek ini; 'key' perlu diisytihar
   ok: boolean;
   neutral: boolean;
   title: string;

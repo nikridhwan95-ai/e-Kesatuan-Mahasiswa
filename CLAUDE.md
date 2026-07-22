@@ -59,8 +59,7 @@ When an application reaches `Lulus Sepenuhnya` AND its report is `Disahkan`, tal
 
 ## Gotchas
 
-- `src/types.ts` is the LIVE types file (Bahasa Melayu statuses like `Lulus Sepenuhnya`). `src/types/index.ts` is dead pre-migration code (English statuses) that nothing imports — don't mistake it for the real one.
-- No `@types/react` is installed: a component that accepts a `key` prop must declare `key` in its own props type (existing examples in the codebase).
+- `src/types.ts` is the single types file (Bahasa Melayu statuses like `Lulus Sepenuhnya`).
 - The remote sandbox blocks `*.supabase.co`, so nothing can be tested against the real backend here. For visual verification use the in-memory mock per `docs/HANDOFF.md` §8: `cp dev/mocksb.example.ts src/mocksb.ts`, add a TEMPORARY `vite.config.ts` alias `'@supabase/supabase-js': path.resolve(__dirname, 'src/mocksb.ts')`, then `npm run dev` (auto-login as admin with sample data). Revert both (remove alias, delete `src/mocksb.ts`, re-run lint) before committing — never commit the mock wiring. `dev/` is excluded from tsc.
 - Playwright screenshots: launch with `executablePath: '/opt/pw-browsers/chromium'`.
 

@@ -12,7 +12,6 @@ export default function EvidenceRow({
   contribution,
   onDispute,
 }: {
-  key?: string; // @types/react tiada dalam projek ini; 'key' perlu diisytihar
   evidence: Evidence;
   contribution?: Contribution;
   onDispute?: (id: string) => void;

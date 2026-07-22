@@ -40,7 +40,7 @@ export default function App() {
   const [userData, setUserData] = useState<UserType | null>(null);
   const [allUsers, setAllUsers] = useState<UserType[]>([]);
   const [newRoleEmail, setNewRoleEmail] = useState('');
-  const [newRoleValue, setNewRoleValue] = useState<UserRole>('advisor');
+  const [newRoleValue, setNewRoleValue] = useState<UserRole>('unit_semakan');
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [openAccordion, setOpenAccordion] = useState<string | null>('kategori');
   
@@ -540,7 +540,6 @@ export default function App() {
                             value={newRoleValue}
                             onChange={(e) => setNewRoleValue(e.target.value as UserRole)}
                           >
-                            <option value="advisor">Penasihat</option>
                             <option value="unit_semakan">KM - Unit Semakan</option>
                             <option value="unit_pembentangan">KM - Unit Pembentangan</option>
                             <option value="unit_kertas_kerja">KM - Unit Kertas Kerja</option>
