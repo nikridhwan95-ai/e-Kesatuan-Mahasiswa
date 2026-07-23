@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, CheckCircle, AlertCircle, FileText, Image as ImageIcon, XCircle, Search, DollarSign, Clock, Calendar, User } from 'lucide-react';
+import { CheckCircle, AlertCircle, FileText, XCircle, Search, DollarSign, Clock, Calendar, User } from 'lucide-react';
 import { UserRole, Application, Report } from '../../types';
 import { getApplications, getReports, createReport, updateReportStatus, uploadFile, getUsers } from '../../services/dataService';
 import { syncEvidenceForApplication } from '../../bakat/evidenceService';
@@ -16,7 +16,8 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
   const [applications, setApplications] = useState<Application[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  // TODO Fasa 6: paparkan keadaan pemuatan; buat masa ini hanya dijejak.
+  const [_loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 

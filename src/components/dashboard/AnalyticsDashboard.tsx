@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { TrendingUp, DollarSign, Clock, Activity, ShieldAlert, FileText, CheckCircle, AlertCircle, Users, Wallet, Sparkles, Loader2 } from 'lucide-react';
+import { TrendingUp, Clock, FileText, CheckCircle, AlertCircle, Users, Wallet, Sparkles, Loader2 } from 'lucide-react';
 import { UserRole, Application, Report } from '../../types';
 import { getApplications, getReports } from '../../services/dataService';
 import { getCurrentAppUser } from '../../supabase';

@@ -5,7 +5,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X, Radar, FileSpreadsheet } from 'lucide-react';
-import ApprovalWorkflow from './components/approval/ApprovalWorkflow';
 import AnalyticsDashboard from './components/dashboard/AnalyticsDashboard';
 import ApplicationModule from './components/application/ApplicationModule';
 import ReportModule from './components/report/ReportModule';
@@ -21,7 +20,7 @@ import BakatProfile from './components/bakat/BakatProfile';
 import TalentSearchModule from './components/bakat/TalentSearchModule';
 import StudentDirectoryModule from './components/bakat/StudentDirectoryModule';
 import ExcelImportModule from './components/import/ExcelImportModule';
-import { Application, UserRole, User as UserType } from './types';
+import { UserRole, User as UserType } from './types';
 import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_USERNAME, PORTAL_ADMIN_EMAIL } from './supabase';
 import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/dataService';
 

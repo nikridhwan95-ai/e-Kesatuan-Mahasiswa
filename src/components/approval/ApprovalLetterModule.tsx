@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, CheckCircle, Download, Calendar, User, Building, ChevronLeft } from 'lucide-react';
+import { Download, ChevronLeft } from 'lucide-react';
 import { Application, User as UserType } from '../../types';
 import { getApplicationById, getUserProfile, getSetting } from '../../services/dataService';
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, CheckCircle, XCircle, AlertCircle, FileText, MessageSquare, Settings } from 'lucide-react';
 import { UserRole, Application, PresentationSession } from '../../types';
 import PresentationSessionManager from './PresentationSessionManager';
-import { getApplications, updateApplication, getPresentationSessions, createPresentationSession, updatePresentationSessionStatus, updateApplicationPresentation, getUsers, updateApplicationStatus, deletePresentationSession } from '../../services/dataService';
+import { getApplications, getPresentationSessions, createPresentationSession, updatePresentationSessionStatus, updateApplicationPresentation, getUsers, updateApplicationStatus, deletePresentationSession } from '../../services/dataService';
 
 interface PresentationModuleProps {
   currentUserRole: UserRole;
@@ -11,7 +11,6 @@ interface PresentationModuleProps {
 
 export default function PresentationModule({ currentUserRole, applicantId }: PresentationModuleProps) {
   const isReviewer = currentUserRole === 'unit_pembentangan' || currentUserRole === 'admin';
-  const isAdmin = currentUserRole === 'admin';
 
   const [activeTab, setActiveTab] = useState<'list' | 'sessions'>('list');
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
@@ -23,7 +22,8 @@ export default function PresentationModule({ currentUserRole, applicantId }: Pre
   const [sessions, setSessions] = useState<PresentationSession[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  // TODO Fasa 6: paparkan keadaan pemuatan; buat masa ini hanya dijejak.
+  const [_loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, ArrowUpDown, FileText, Eye, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, FileText, Eye, CheckCircle, AlertCircle } from 'lucide-react';
 import { Application, UserRole, ApplicationStatus } from '../../types';
 import ApprovalWorkflow from '../approval/ApprovalWorkflow';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
@@ -199,7 +199,9 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
     }
   };
 
-  const handleSchedulePresentation = async (id: string, date: string) => {
+  // TODO Fasa 6: PEPIJAT — tarikh yang dipilih pentadbir dibuang; mesti
+  // disimpan melalui updateApplicationPresentation.
+  const handleSchedulePresentation = async (id: string, _date: string) => {
     // This is handled in PresentationModule usually, but if called here:
     try {
       await updateApplicationStatus(id, 'Menunggu Pembentangan');

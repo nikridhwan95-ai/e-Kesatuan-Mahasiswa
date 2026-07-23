@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Calendar, CheckCircle, XCircle, Clock, BookOpen, DoorOpen, Trash2, Link as LinkIcon } from 'lucide-react';
+import { Plus, Calendar, Clock, BookOpen, DoorOpen, Trash2, Link as LinkIcon } from 'lucide-react';
 import { PresentationSession } from '../../types';
 import { getCurrentAcademicSession, generateAcademicSessions } from '../../utils/dateUtils';
 

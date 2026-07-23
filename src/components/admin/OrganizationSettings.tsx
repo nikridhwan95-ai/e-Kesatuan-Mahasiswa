@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Building2, Home, Loader2, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Building2, Home, Loader2 } from 'lucide-react';
 import { 
   getFaculties, addFaculty, deleteFaculty,
   getColleges, addCollege, deleteCollege 
