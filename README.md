@@ -54,8 +54,6 @@ Ketiga-tiga `lint`, `check:bakat` dan `build` dikuatkuasakan oleh CI
 
 ## Dokumentasi
 
-- `docs/SDD.md` — Dokumen Reka Bentuk Perisian penuh: seni bina, reka
-  bentuk data dan proses, enjin skor bakat, model keselamatan
 - `docs/HANDOFF.md` — nota serah tugas: keputusan yang telah dipersetujui,
   keadaan semasa, dan tindakan pemilik yang masih menunggu
 - `docs/SCHEMA.md` — seni bina, skema data, dan titik integrasi Modul Bakat

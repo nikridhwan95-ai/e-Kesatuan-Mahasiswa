@@ -21,8 +21,6 @@ Pelajar (BHEP) UPM yang menggabungkan DUA sistem yang saling berkait:
   baharu dibuat pada branch `claude/*` baharu daripada `main`
 - **Bahasa UI:** Bahasa Melayu Malaysia piawaian DBP (lihat §7)
 - Seni bina terperinci: `docs/SCHEMA.md` (telah ditulis semula — kini tepat)
-- Dokumen reka bentuk penuh: `docs/SDD.md` (v1.0, 2026-07-23 — dijana
-  daripada kod sebenar; kemas kini bersama sebarang perubahan reka bentuk)
 
 ## 2. Audit penuh + remediasi (kini dalam `main`)
 
