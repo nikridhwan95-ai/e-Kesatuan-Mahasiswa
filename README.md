@@ -14,9 +14,9 @@ disokong oleh **Supabase** (Auth + Postgres + Storage).
 2. **Akaun log masuk portal** — portal menggunakan log masuk nama pengguna +
    kata laluan (nama pengguna `ekmupm`). Di sebalik tabir ia adalah akaun
    e-mel Supabase `ekmupm@portal-bhep.upm.edu.my`. Pilih SATU cara:
-   - *Automatik:* Dashboard → Authentication → Sign In / Providers → Email →
+   - _Automatik:_ Dashboard → Authentication → Sign In / Providers → Email →
      matikan **Confirm email**. Log masuk pertama akan mencipta akaun sendiri.
-   - *Manual:* Dashboard → Authentication → Users → **Add user** dengan e-mel
+   - _Manual:_ Dashboard → Authentication → Users → **Add user** dengan e-mel
      `ekmupm@portal-bhep.upm.edu.my`, kata laluan portal, dan tandakan
      **Auto Confirm User**.
 

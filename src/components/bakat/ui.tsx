@@ -58,9 +58,21 @@ export function ProgressRing({
   const pct = Math.max(0, Math.min(100, value));
   const hex = BAND_META[bandOf(pct)].hex;
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={label ?? `${value}`}>
+    <div
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={label ?? `${value}`}
+    >
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="#e2e8f0"
+          strokeWidth={stroke}
+        />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -101,7 +113,9 @@ export function StatCard({
       </div>
       <div className="min-w-0">
         <p className="text-xs font-semibold text-slate-500">{label}</p>
-        <p className="text-2xl font-bold text-slate-900 font-display tabular-nums leading-tight">{value}</p>
+        <p className="text-2xl font-bold text-slate-900 font-display tabular-nums leading-tight">
+          {value}
+        </p>
         {sub && <p className="text-xs text-slate-400 mt-0.5 leading-snug">{sub}</p>}
       </div>
     </div>
@@ -118,7 +132,9 @@ export function BandChip({ score }: { score: number }) {
     perlu: 'Perlu Peningkatan',
   };
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${meta.chip}`}>
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${meta.chip}`}
+    >
       {short[band]}
     </span>
   );
@@ -134,17 +150,20 @@ const AVATAR_COLORS = [
 ];
 
 export function Avatar({ name, size = 'md' }: { name: string; size?: 'md' | 'lg' }) {
-  const initials = name
-    .split(/\s+/)
-    .filter((w) => /^[A-Za-z]/.test(w))
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join('') || '?';
+  const initials =
+    name
+      .split(/\s+/)
+      .filter((w) => /^[A-Za-z]/.test(w))
+      .slice(0, 2)
+      .map((w) => w[0]!.toUpperCase())
+      .join('') || '?';
   let hash = 0;
   for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) % AVATAR_COLORS.length;
   const cls = size === 'lg' ? 'w-16 h-16 text-xl' : 'w-10 h-10 text-sm';
   return (
-    <div className={`${cls} ${AVATAR_COLORS[hash]} rounded-full flex items-center justify-center font-bold shrink-0`}>
+    <div
+      className={`${cls} ${AVATAR_COLORS[hash]} rounded-full flex items-center justify-center font-bold shrink-0`}
+    >
       {initials}
     </div>
   );
@@ -156,12 +175,14 @@ export function RankBadge({ rank }: { rank: number }) {
     rank === 1
       ? 'bg-amber-400 text-white'
       : rank === 2
-      ? 'bg-slate-300 text-slate-700'
-      : rank === 3
-      ? 'bg-orange-300 text-orange-900'
-      : 'bg-slate-100 text-slate-500';
+        ? 'bg-slate-300 text-slate-700'
+        : rank === 3
+          ? 'bg-orange-300 text-orange-900'
+          : 'bg-slate-100 text-slate-500';
   return (
-    <span className={`inline-flex w-7 h-7 items-center justify-center rounded-lg text-xs font-bold tabular-nums ${medal}`}>
+    <span
+      className={`inline-flex w-7 h-7 items-center justify-center rounded-lg text-xs font-bold tabular-nums ${medal}`}
+    >
       {rank}
     </span>
   );

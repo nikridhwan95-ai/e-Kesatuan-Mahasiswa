@@ -10,39 +10,34 @@
 // penjanaan semula bersifat idempotent — rekod sedia ada tidak diganda.
 
 import { Application, Report } from '../types';
-import {
-  CompetencyCode,
-  Evidence,
-  ProgrammeLevel,
-  RoleType,
-} from './domain';
+import { CompetencyCode, Evidence, ProgrammeLevel, RoleType } from './domain';
 
 // Peringkat Penganjuran e-Kesatuan → ProgrammeLevel SDD.
 // 'Negeri' tiada padanan langsung dalam SDD (4 peringkat sahaja) — dipetakan
 // ke 'national' sebagai peringkat terdekat.
 export const LEVEL_MAP: Record<string, ProgrammeLevel> = {
-  'Antarabangsa': 'international',
-  'Kebangsaan': 'national',
-  'Negeri': 'national',
-  'Universiti': 'university',
+  Antarabangsa: 'international',
+  Kebangsaan: 'national',
+  Negeri: 'national',
+  Universiti: 'university',
   'Kolej atau Fakulti': 'faculty',
 };
 
 // Jawatan Pemohon e-Kesatuan → RoleType SDD (Appendix C).
 export const ROLE_MAP: Record<string, RoleType> = {
-  'Pengarah': 'chairperson',
-  'Setiausaha': 'secretary',
+  Pengarah: 'chairperson',
+  Setiausaha: 'secretary',
 };
 
 // Kategori program (8 Teras) → kompetensi utama yang dibina oleh program itu.
 export const CATEGORY_COMPETENCY: Record<string, CompetencyCode> = {
-  'Kesukarelawanan': 'VOL',
-  'Kepimpinan': 'LEA',
-  'Kebudayaan': 'ART',
-  'Sukan': 'SPO',
-  'Keusahawanan': 'ENT',
+  Kesukarelawanan: 'VOL',
+  Kepimpinan: 'LEA',
+  Kebudayaan: 'ART',
+  Sukan: 'SPO',
+  Keusahawanan: 'ENT',
   'Akademik & Intelektual': 'RES',
-  'Kerohanian': 'VOL',
+  Kerohanian: 'VOL',
   'Kelestarian & Alam Sekitar': 'VOL',
 };
 
@@ -82,7 +77,8 @@ export function deriveEvidence(app: Application, report: Report | undefined): Ev
   const role = app.applicantPosition ? ROLE_MAP[app.applicantPosition] : undefined;
   const eventDate = toISO(app.endDate || app.startDate, app.updatedAt || app.createdAt);
   const approvedAt = toISO(report?.reviewedAt, eventDate);
-  const roleLabel = app.applicantPosition === 'Pengarah' ? 'Pengarah Program' : 'Setiausaha Program';
+  const roleLabel =
+    app.applicantPosition === 'Pengarah' ? 'Pengarah Program' : 'Setiausaha Program';
 
   const rows: Evidence[] = [];
   const seen = new Set<string>(); // "sourceType:competency" — elak rekod berganda

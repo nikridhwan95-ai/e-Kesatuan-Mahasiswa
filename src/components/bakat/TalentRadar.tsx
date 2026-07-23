@@ -76,8 +76,12 @@ export default function TalentRadar({
       <caption className="sr-only">Kompetensi</caption>
       <thead>
         <tr className="border-b border-slate-200 text-left text-slate-500">
-          <th scope="col" className="py-2 font-medium">Kompetensi</th>
-          <th scope="col" className="py-2 text-right font-medium tabular-nums">Skor</th>
+          <th scope="col" className="py-2 font-medium">
+            Kompetensi
+          </th>
+          <th scope="col" className="py-2 text-right font-medium tabular-nums">
+            Skor
+          </th>
         </tr>
       </thead>
       <tbody>

@@ -22,8 +22,8 @@ import BakatProfile from './BakatProfile';
 
 const STATUS_CHIP: Record<string, string> = {
   'Lulus Sepenuhnya': 'text-emerald-700 bg-emerald-50 border-emerald-200',
-  'Ditolak': 'text-red-700 bg-red-50 border-red-200',
-  'Dibatalkan': 'text-slate-500 bg-slate-100 border-slate-200',
+  Ditolak: 'text-red-700 bg-red-50 border-red-200',
+  Dibatalkan: 'text-slate-500 bg-slate-100 border-slate-200',
   'Perlu Pembetulan': 'text-amber-700 bg-amber-50 border-amber-200',
 };
 const statusChipCls = (s: string) => STATUS_CHIP[s] ?? 'text-blue-700 bg-blue-50 border-blue-200';
@@ -74,7 +74,11 @@ export default function StudentDirectoryModule() {
     return users
       .filter((u) => u.role === 'student')
       .map((user) => {
-        const scores = recalculateStudent(user.uid, COMPETENCY_CODES, evidenceByStudent.get(user.uid) ?? []);
+        const scores = recalculateStudent(
+          user.uid,
+          COMPETENCY_CODES,
+          evidenceByStudent.get(user.uid) ?? [],
+        );
         const strengths = scores.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
         return {
           user,
@@ -85,8 +89,8 @@ export default function StudentDirectoryModule() {
       })
       .sort((a, b) =>
         ((a.user as { displayName?: string }).displayName || a.user.name).localeCompare(
-          (b.user as { displayName?: string }).displayName || b.user.name
-        )
+          (b.user as { displayName?: string }).displayName || b.user.name,
+        ),
       );
   }, [users, applications, evidence]);
 
@@ -107,7 +111,7 @@ export default function StudentDirectoryModule() {
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
-        .includes(term)
+        .includes(term),
     );
   }, [rows, searchTerm]);
 
@@ -131,7 +135,11 @@ export default function StudentDirectoryModule() {
       { icon: Phone, label: 'No. Telefon', value: selected.phoneNumber },
       { icon: GraduationCap, label: 'Fakulti', value: selected.faculty },
       { icon: Building2, label: 'Kolej', value: selected.college },
-      { icon: CalendarDays, label: 'Tahun Pengajian', value: selected.studyYear ? `Tahun ${selected.studyYear}` : undefined },
+      {
+        icon: CalendarDays,
+        label: 'Tahun Pengajian',
+        value: selected.studyYear ? `Tahun ${selected.studyYear}` : undefined,
+      },
       { icon: BookOpen, label: 'Program Pengajian', value: selected.programme },
       { icon: MapPin, label: 'Alamat', value: selected.address },
     ];
@@ -155,7 +163,9 @@ export default function StudentDirectoryModule() {
             </div>
             <div className="text-left sm:text-right shrink-0">
               <p className="text-xs font-semibold text-slate-500">Program e-Kesatuan</p>
-              <p className="text-2xl font-bold font-display tabular-nums text-slate-900">{studentApps.length}</p>
+              <p className="text-2xl font-bold font-display tabular-nums text-slate-900">
+                {studentApps.length}
+              </p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 border-t border-slate-100 pt-5">
@@ -166,7 +176,9 @@ export default function StudentDirectoryModule() {
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-500">{label}</p>
-                  <p className={`text-sm ${value ? 'text-slate-900 font-medium' : 'text-slate-300'}`}>
+                  <p
+                    className={`text-sm ${value ? 'text-slate-900 font-medium' : 'text-slate-300'}`}
+                  >
                     {value ?? 'Tiada maklumat'}
                   </p>
                 </div>
@@ -183,15 +195,22 @@ export default function StudentDirectoryModule() {
           ) : (
             <div className="space-y-2">
               {studentApps.map((a) => (
-                <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 p-3">
+                <div
+                  key={a.id}
+                  className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 p-3"
+                >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-900">{a.title}</p>
                     <p className="text-xs text-slate-500">
-                      {[a.id, a.applicantPosition, a.category, a.organizingLevel].filter(Boolean).join(' · ')}
+                      {[a.id, a.applicantPosition, a.category, a.organizingLevel]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
                   </div>
                   <span className="text-xs tabular-nums text-slate-500">{a.startDate}</span>
-                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${statusChipCls(a.status)}`}>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${statusChipCls(a.status)}`}
+                  >
                     {a.status}
                   </span>
                 </div>
@@ -268,7 +287,9 @@ export default function StudentDirectoryModule() {
                         <p className="font-semibold text-slate-900 truncate">
                           {(user as { displayName?: string }).displayName || user.name}
                         </p>
-                        <p className="text-xs text-slate-500 truncate">{user.matricNumber ?? user.email}</p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {user.matricNumber ?? user.email}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -276,7 +297,9 @@ export default function StudentDirectoryModule() {
                     {[user.faculty, user.college].filter(Boolean).join(' · ') || '—'}
                   </td>
                   <td className="py-3 pr-3 tabular-nums text-slate-700">{user.studyYear ?? '—'}</td>
-                  <td className="py-3 pr-3 text-right tabular-nums text-slate-700">{programmeCount}</td>
+                  <td className="py-3 pr-3 text-right tabular-nums text-slate-700">
+                    {programmeCount}
+                  </td>
                   <td className="py-3 pr-3">
                     {overall > 0 ? (
                       <span className="inline-flex items-center gap-2">
@@ -288,7 +311,11 @@ export default function StudentDirectoryModule() {
                     )}
                   </td>
                   <td className="py-3 text-slate-700">
-                    {topStrength ? competencyName(topStrength.competency_id) : <span className="text-slate-300">—</span>}
+                    {topStrength ? (
+                      competencyName(topStrength.competency_id)
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
                   </td>
                 </tr>
               ))}

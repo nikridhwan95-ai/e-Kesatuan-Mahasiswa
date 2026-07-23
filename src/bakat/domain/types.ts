@@ -4,14 +4,24 @@
 
 // ── Taksonomi kompetensi (§8.4) ─────────────────────────────────────────────
 export type CompetencyCode =
-  | 'LEA' | 'COM' | 'INN' | 'TEC' | 'ENT' | 'SPO' | 'ART' | 'RES'
-  | 'VOL' | 'CRT' | 'DIG' | 'GLO' | 'PRJ' | 'FIN' | 'NEG' | 'NET';
+  | 'LEA'
+  | 'COM'
+  | 'INN'
+  | 'TEC'
+  | 'ENT'
+  | 'SPO'
+  | 'ART'
+  | 'RES'
+  | 'VOL'
+  | 'CRT'
+  | 'DIG'
+  | 'GLO'
+  | 'PRJ'
+  | 'FIN'
+  | 'NEG'
+  | 'NET';
 
-export type CompetencyCluster =
-  | 'cognitive'
-  | 'interpersonal'
-  | 'execution'
-  | 'values';
+export type CompetencyCluster = 'cognitive' | 'interpersonal' | 'execution' | 'values';
 
 export interface Competency {
   code: CompetencyCode;
@@ -33,11 +43,7 @@ export type RoleType =
   | 'vice_chair'
   | 'chairperson'; // termasuk Pengarah Program
 
-export type ProgrammeLevel =
-  | 'faculty'
-  | 'university'
-  | 'national'
-  | 'international';
+export type ProgrammeLevel = 'faculty' | 'university' | 'national' | 'international';
 
 // ── Sumber & status evidence (§7.3) ─────────────────────────────────────────
 export type EvidenceSourceType =

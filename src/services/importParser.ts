@@ -69,10 +69,22 @@ export const TEMPLATE_EXAMPLE_ROW = [
 ];
 
 export const VALID_JAWATAN = ['Pengarah', 'Setiausaha'];
-export const VALID_PERINGKAT = ['Antarabangsa', 'Kebangsaan', 'Negeri', 'Universiti', 'Kolej atau Fakulti'];
+export const VALID_PERINGKAT = [
+  'Antarabangsa',
+  'Kebangsaan',
+  'Negeri',
+  'Universiti',
+  'Kolej atau Fakulti',
+];
 export const VALID_KATEGORI = [
-  'Kesukarelawanan', 'Kepimpinan', 'Kebudayaan', 'Sukan', 'Keusahawanan',
-  'Akademik & Intelektual', 'Kerohanian', 'Kelestarian & Alam Sekitar',
+  'Kesukarelawanan',
+  'Kepimpinan',
+  'Kebudayaan',
+  'Sukan',
+  'Keusahawanan',
+  'Akademik & Intelektual',
+  'Kerohanian',
+  'Kelestarian & Alam Sekitar',
 ];
 export const VALID_SOFTSKILLS = [
   'Kemahiran Berkomunikasi',
@@ -335,7 +347,11 @@ export function parseStudentRows(sheetRows: Record<string, unknown>[]): {
     if (!name || !matric) return;
 
     if (seenMatric.has(matric)) {
-      issues.push({ row: rowNo, severity: 'amaran', message: `No. Matrik ${matric} berulang dalam fail — baris ini dilangkau` });
+      issues.push({
+        row: rowNo,
+        severity: 'amaran',
+        message: `No. Matrik ${matric} berulang dalam fail — baris ini dilangkau`,
+      });
       return;
     }
     seenMatric.add(matric);

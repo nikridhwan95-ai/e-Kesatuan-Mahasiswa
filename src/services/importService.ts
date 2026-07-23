@@ -21,7 +21,7 @@ export interface StudentImportResultRow {
 // DIKEMAS KINI (hanya medan yang diisi dalam Excel), pelajar baharu dicipta.
 export async function importStudents(
   students: ImportedStudent[],
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
 ): Promise<StudentImportResultRow[]> {
   const { data: existing, error } = await supabase.from('users').select('uid, matricNumber');
   if (error) throw new Error(`Gagal memuat senarai pengguna: ${error.message}`);
@@ -50,7 +50,10 @@ export async function importStudents(
 
       const existingUid = uidByMatric.get(s.matric);
       if (existingUid) {
-        const { error: updErr } = await supabase.from('users').update(fields).eq('uid', existingUid);
+        const { error: updErr } = await supabase
+          .from('users')
+          .update(fields)
+          .eq('uid', existingUid);
         if (updErr) throw new Error(updErr.message);
         results.push({ student: s, status: 'dikemas kini', detail: existingUid });
       } else {
@@ -63,7 +66,7 @@ export async function importStudents(
             createdAt: new Date().toISOString(),
             ...fields,
           },
-          { onConflict: 'uid' }
+          { onConflict: 'uid' },
         );
         if (insErr) throw new Error(insErr.message);
         uidByMatric.set(s.matric, uid);
@@ -101,7 +104,7 @@ function sessionPrefix(startDate: string): string {
 
 export async function importProgrammes(
   programmes: ImportedProgramme[],
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
 ): Promise<ImportResultRow[]> {
   // Muat sekali: pengguna sedia ada (padanan matrik) + permohonan sedia ada
   // (kunci penduaan + nombor turutan ID).
@@ -121,7 +124,10 @@ export async function importProgrammes(
   const seqByPrefix = new Map<string, number>();
   const matricByUid = new Map<string, string>();
   for (const [matric, uid] of uidByMatric) matricByUid.set(uid, matric);
-  for (const a of (appsRes.data ?? []) as Pick<Application, 'id' | 'applicantId' | 'title' | 'startDate'>[]) {
+  for (const a of (appsRes.data ?? []) as Pick<
+    Application,
+    'id' | 'applicantId' | 'title' | 'startDate'
+  >[]) {
     const matric = matricByUid.get(a.applicantId) ?? a.applicantId;
     existingKeys.add(dedupeKey(matric, a.title ?? '', a.startDate ?? ''));
     const m = String(a.id).match(/^(KM\.\d{2}-\d{2}\.)(\d+)$/);
@@ -138,7 +144,12 @@ export async function importProgrammes(
     try {
       const key = dedupeKey(p.student.matric, p.title, p.startDate);
       if (existingKeys.has(key)) {
-        results.push({ programme: p, status: 'dilangkau', detail: 'Program sudah wujud dalam sistem', buktiCreated: 0 });
+        results.push({
+          programme: p,
+          status: 'dilangkau',
+          detail: 'Program sudah wujud dalam sistem',
+          buktiCreated: 0,
+        });
         continue;
       }
 
@@ -149,7 +160,8 @@ export async function importProgrammes(
         const { error } = await supabase.from('users').upsert(
           {
             uid,
-            email: p.student.email ?? `${p.student.matric.toLowerCase()}@import.portal-bhep.upm.edu.my`,
+            email:
+              p.student.email ?? `${p.student.matric.toLowerCase()}@import.portal-bhep.upm.edu.my`,
             role: 'student',
             name: p.student.name,
             matricNumber: p.student.matric,
@@ -157,7 +169,7 @@ export async function importProgrammes(
             college: p.student.college ?? null,
             createdAt: new Date().toISOString(),
           },
-          { onConflict: 'uid' }
+          { onConflict: 'uid' },
         );
         if (error) throw new Error(`pelajar: ${error.message}`);
         uidByMatric.set(p.student.matric, uid);

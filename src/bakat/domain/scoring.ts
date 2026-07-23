@@ -7,12 +7,7 @@
 // IRON RULE (§4.4): ini SATU-SATUNYA tempat CompetencyScore boleh dihasilkan.
 // Evidence bukan 'approved' TIDAK menyumbang.
 
-import {
-  CompetencyCode,
-  CompetencyScore,
-  Evidence,
-  EvidenceSourceType,
-} from './types';
+import { CompetencyCode, CompetencyScore, Evidence, EvidenceSourceType } from './types';
 import { TAXONOMY_BY_CODE } from './taxonomy';
 import {
   ENGINE_VERSION,
@@ -69,13 +64,10 @@ export function scoreBreakdown(
   studentId: string,
   competency: CompetencyCode,
   evidence: Evidence[],
-  now: string = nowISO()
+  now: string = nowISO(),
 ): ScoreBreakdown {
   const approved = evidence.filter(
-    (e) =>
-      e.student_id === studentId &&
-      e.competency_id === competency &&
-      e.status === 'approved'
+    (e) => e.student_id === studentId && e.competency_id === competency && e.status === 'approved',
   );
 
   const caps = TAXONOMY_BY_CODE[competency]?.weight_rules ?? {};
@@ -130,10 +122,10 @@ export function scoreBreakdown(
   const lastEvidenceAt =
     approved.length === 0
       ? null
-      : approved
+      : (approved
           .map((e) => e.event_date)
           .sort()
-          .at(-1) ?? null;
+          .at(-1) ?? null);
 
   return {
     student_id: studentId,
@@ -152,7 +144,7 @@ export function recalculateStudent(
   studentId: string,
   competencies: CompetencyCode[],
   evidence: Evidence[],
-  now: string = nowISO()
+  now: string = nowISO(),
 ): CompetencyScore[] {
   return competencies.map((code) => {
     const b = scoreBreakdown(studentId, code, evidence, now);

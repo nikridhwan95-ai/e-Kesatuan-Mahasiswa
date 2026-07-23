@@ -17,10 +17,12 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
 };
 
 export const createUserProfile = async (uid: string, data: Partial<User>) => {
-  const { error } = await supabase.from('users').upsert(
-    { ...data, uid, createdAt: data.createdAt ?? new Date().toISOString() },
-    { onConflict: 'uid' }
-  );
+  const { error } = await supabase
+    .from('users')
+    .upsert(
+      { ...data, uid, createdAt: data.createdAt ?? new Date().toISOString() },
+      { onConflict: 'uid' },
+    );
   if (error) fail('createUserProfile', error);
 };
 
@@ -56,13 +58,17 @@ export const getApplications = async (role: UserRole, uid: string): Promise<Appl
 };
 
 export const getApplicationById = async (appId: string): Promise<Application | null> => {
-  const { data, error } = await supabase.from('applications').select('*').eq('id', appId).maybeSingle();
+  const { data, error } = await supabase
+    .from('applications')
+    .select('*')
+    .eq('id', appId)
+    .maybeSingle();
   if (error) fail('getApplicationById', error);
   return (data as Application | null) ?? null;
 };
 
 export const createApplication = async (
-  application: Omit<Application, 'id' | 'createdAt' | 'updatedAt'>
+  application: Omit<Application, 'id' | 'createdAt' | 'updatedAt'>,
 ) => {
   // ID berformat KM.<sesi>.<turutan>, cth KM.25-26.001 (sama seperti dahulu).
   const now = new Date();
@@ -99,7 +105,7 @@ export const updateApplicationStatus = async (
   appId: string,
   status: string,
   comment?: string,
-  approvedAmount?: number
+  approvedAmount?: number,
 ) => {
   const data: Record<string, unknown> = { status, updatedAt: new Date().toISOString() };
   if (comment) data.reviewerComment = comment;
@@ -120,7 +126,7 @@ export const updateApplicationPresentation = async (
   appId: string,
   sessionId: string,
   date: string,
-  room?: number
+  room?: number,
 ) => {
   const { error } = await supabase
     .from('applications')
@@ -170,7 +176,7 @@ export const createPresentationSession = async (session: Omit<PresentationSessio
 
 export const updatePresentationSessionStatus = async (
   sessionId: string,
-  status: 'Open' | 'Closed'
+  status: 'Open' | 'Closed',
 ) => {
   const { error } = await supabase
     .from('presentation_sessions')
@@ -208,7 +214,7 @@ export const updateReportStatus = async (
   reportId: string,
   status: string,
   comment?: string,
-  additionalData?: Partial<Report>
+  additionalData?: Partial<Report>,
 ) => {
   const updateData: Record<string, unknown> = {
     status,
@@ -227,7 +233,7 @@ export const uploadFile = async (path: string, file: File): Promise<string> => {
   if (error) {
     console.error('Error uploading file:', error);
     throw new Error(
-      'Ralat Storage: Sila pastikan baldi "uploads" wujud di Supabase (jalankan supabase/schema.sql).'
+      'Ralat Storage: Sila pastikan baldi "uploads" wujud di Supabase (jalankan supabase/schema.sql).',
     );
   }
   const { data } = supabase.storage.from('uploads').getPublicUrl(path);
@@ -275,17 +281,53 @@ const DEFAULT_CATEGORIES = [
   'Kelestarian & Alam Sekitar',
 ];
 
-const DEFAULT_FACULTIES = ['Fakulti Pertanian', 'Fakulti Perhutanan dan Alam Sekitar', 'Fakulti Veterinar', 'Fakulti Ekonomi dan Pengurusan', 'Fakulti Kejuruteraan', 'Fakulti Pengajian Pendidikan', 'Fakulti Sains', 'Fakulti Sains dan Teknologi Makanan', 'Fakulti Reka Bentuk dan Seni Bina', 'Fakulti Bahasa Moden dan Komunikasi', 'Fakulti Perubatan dan Sains Kesihatan', 'Fakulti Sains Komputer dan Teknologi Maklumat', 'Fakulti Bioteknologi dan Sains Biomolekul', 'Fakulti Kemanusiaan, Pengurusan dan Sains', 'Sekolah Perniagaan dan Ekonomi'];
+const DEFAULT_FACULTIES = [
+  'Fakulti Pertanian',
+  'Fakulti Perhutanan dan Alam Sekitar',
+  'Fakulti Veterinar',
+  'Fakulti Ekonomi dan Pengurusan',
+  'Fakulti Kejuruteraan',
+  'Fakulti Pengajian Pendidikan',
+  'Fakulti Sains',
+  'Fakulti Sains dan Teknologi Makanan',
+  'Fakulti Reka Bentuk dan Seni Bina',
+  'Fakulti Bahasa Moden dan Komunikasi',
+  'Fakulti Perubatan dan Sains Kesihatan',
+  'Fakulti Sains Komputer dan Teknologi Maklumat',
+  'Fakulti Bioteknologi dan Sains Biomolekul',
+  'Fakulti Kemanusiaan, Pengurusan dan Sains',
+  'Sekolah Perniagaan dan Ekonomi',
+];
 
-const DEFAULT_COLLEGES = ['Kolej Mohamad Rashid', 'Kolej Kedua', 'Kolej Tun Dr. Ismail', 'Kolej Canselor', 'Kolej Kelima', 'Kolej Keenam', 'Kolej Sultan Alauddin Suleiman Shah', 'Kolej Kelapan', 'Kolej Kesepuluh', 'Kolej Sebelas', 'Kolej Dua Belas', 'Kolej Tiga Belas', 'Kolej Empat Belas', 'Kolej Lima Belas', 'Kolej Enam Belas', 'Kolej Tujuh Belas', 'Kolej Sri Rajang'];
+const DEFAULT_COLLEGES = [
+  'Kolej Mohamad Rashid',
+  'Kolej Kedua',
+  'Kolej Tun Dr. Ismail',
+  'Kolej Canselor',
+  'Kolej Kelima',
+  'Kolej Keenam',
+  'Kolej Sultan Alauddin Suleiman Shah',
+  'Kolej Kelapan',
+  'Kolej Kesepuluh',
+  'Kolej Sebelas',
+  'Kolej Dua Belas',
+  'Kolej Tiga Belas',
+  'Kolej Empat Belas',
+  'Kolej Lima Belas',
+  'Kolej Enam Belas',
+  'Kolej Tujuh Belas',
+  'Kolej Sri Rajang',
+];
 
 export const getCategories = () => getSettingList('categories', DEFAULT_CATEGORIES);
 export const addCategory = (c: string) => addToSettingList('categories', c, DEFAULT_CATEGORIES);
-export const deleteCategory = (c: string) => removeFromSettingList('categories', c, DEFAULT_CATEGORIES);
+export const deleteCategory = (c: string) =>
+  removeFromSettingList('categories', c, DEFAULT_CATEGORIES);
 
 export const getFaculties = () => getSettingList('faculties', DEFAULT_FACULTIES);
 export const addFaculty = (f: string) => addToSettingList('faculties', f, DEFAULT_FACULTIES);
-export const deleteFaculty = (f: string) => removeFromSettingList('faculties', f, DEFAULT_FACULTIES);
+export const deleteFaculty = (f: string) =>
+  removeFromSettingList('faculties', f, DEFAULT_FACULTIES);
 
 export const getColleges = () => getSettingList('colleges', DEFAULT_COLLEGES);
 export const addCollege = (c: string) => addToSettingList('colleges', c, DEFAULT_COLLEGES);

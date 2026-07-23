@@ -40,7 +40,7 @@ export async function disputeEvidenceDoc(evidenceId: string): Promise<void> {
 // bersifat tidak boleh diubah, dan status dispute/void yang ditetapkan mesti kekal.
 export async function syncEvidenceForApplication(
   app: Application,
-  report: Report | undefined
+  report: Report | undefined,
 ): Promise<number> {
   const derived = deriveEvidence(app, report);
   if (derived.length === 0) return 0;

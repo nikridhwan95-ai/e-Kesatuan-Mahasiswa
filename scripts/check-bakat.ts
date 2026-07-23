@@ -10,7 +10,12 @@ import {
 } from '../src/bakat/domain';
 import { deriveEvidence, qualifiesForEvidence, LEVEL_MAP, ROLE_MAP } from '../src/bakat/derive';
 import { bandOf, overallScore } from '../src/bakat/insights';
-import { normalizeDate, parseRows, parseStudentRows, dedupeKey } from '../src/services/importParser';
+import {
+  normalizeDate,
+  parseRows,
+  parseStudentRows,
+  dedupeKey,
+} from '../src/services/importParser';
 import { Application, Report } from '../src/types';
 
 let failures = 0;
@@ -53,22 +58,36 @@ console.log('Enjin skor:');
   const withVoid = [...base, ev({ id: 'e3', status: 'void', points: 10 })];
   const withDisputed = [...base, ev({ id: 'e4', status: 'disputed', points: 10 })];
   const s0 = scoreBreakdown('S1', 'LEA', base, NOW).score;
-  assert('evidence pending tidak menyumbang', scoreBreakdown('S1', 'LEA', withPending, NOW).score === s0);
+  assert(
+    'evidence pending tidak menyumbang',
+    scoreBreakdown('S1', 'LEA', withPending, NOW).score === s0,
+  );
   assert('evidence void tidak menyumbang', scoreBreakdown('S1', 'LEA', withVoid, NOW).score === s0);
-  assert('evidence disputed tidak menyumbang', scoreBreakdown('S1', 'LEA', withDisputed, NOW).score === s0);
+  assert(
+    'evidence disputed tidak menyumbang',
+    scoreBreakdown('S1', 'LEA', withDisputed, NOW).score === s0,
+  );
 }
 
 // 2) Monotonik: menambah evidence 'approved' tidak menurunkan skor.
 {
   const a = [ev({ id: 'e1', points: 4 })];
   const b = [...a, ev({ id: 'e2', points: 4, source_type: 'certificate' })];
-  assert('menambah evidence approved tidak menurunkan skor', scoreBreakdown('S1', 'LEA', b, NOW).score >= scoreBreakdown('S1', 'LEA', a, NOW).score);
+  assert(
+    'menambah evidence approved tidak menurunkan skor',
+    scoreBreakdown('S1', 'LEA', b, NOW).score >= scoreBreakdown('S1', 'LEA', a, NOW).score,
+  );
 }
 
 // 3) Cap pada 100.
 {
   const many = Array.from({ length: 40 }, (_, i) =>
-    ev({ id: `e${i}`, points: 10, source_type: 'achievement', weight_factors: { level: 'international', role: 'chairperson' } })
+    ev({
+      id: `e${i}`,
+      points: 10,
+      source_type: 'achievement',
+      weight_factors: { level: 'international', role: 'chairperson' },
+    }),
   );
   assert('skor dihadkan pada 100', scoreBreakdown('S1', 'LEA', many, NOW).score <= 100);
 }
@@ -77,15 +96,33 @@ console.log('Enjin skor:');
 {
   const recent = [ev({ id: 'r', points: 6, event_date: '2026-06-01T00:00:00.000Z' })];
   const old = [ev({ id: 'o', points: 6, event_date: '2022-06-01T00:00:00.000Z' })];
-  assert('recency decay mengurangkan evidence lama', scoreBreakdown('S1', 'LEA', recent, NOW).score > scoreBreakdown('S1', 'LEA', old, NOW).score);
+  assert(
+    'recency decay mengurangkan evidence lama',
+    scoreBreakdown('S1', 'LEA', recent, NOW).score > scoreBreakdown('S1', 'LEA', old, NOW).score,
+  );
 }
 
 // 5) Jumlah sumbangan berkesan == skor paksi (tepat) — kriteria drill-down.
 {
   const mixed = [
-    ev({ id: 'a', points: 8, source_type: 'committee_role', weight_factors: { role: 'chairperson', level: 'national', attendance_pct: 90 } }),
-    ev({ id: 'b', points: 5, source_type: 'participation', weight_factors: { role: 'participant', level: 'university', attendance_pct: 100 } }),
-    ev({ id: 'c', points: 7, source_type: 'competition_result', weight_factors: { level: 'international' } }),
+    ev({
+      id: 'a',
+      points: 8,
+      source_type: 'committee_role',
+      weight_factors: { role: 'chairperson', level: 'national', attendance_pct: 90 },
+    }),
+    ev({
+      id: 'b',
+      points: 5,
+      source_type: 'participation',
+      weight_factors: { role: 'participant', level: 'university', attendance_pct: 100 },
+    }),
+    ev({
+      id: 'c',
+      points: 7,
+      source_type: 'competition_result',
+      weight_factors: { level: 'international' },
+    }),
   ];
   const bd = scoreBreakdown('S1', 'LEA', mixed, NOW);
   const sum = Math.round(bd.contributions.reduce((a, c) => a + c.effective, 0) * 10) / 10;
@@ -94,9 +131,16 @@ console.log('Enjin skor:');
 
 // 6) Pendarab peranan & peringkat meningkatkan sumbangan.
 {
-  const low = [ev({ id: 'l', points: 5, weight_factors: { role: 'participant', level: 'faculty' } })];
-  const high = [ev({ id: 'h', points: 5, weight_factors: { role: 'chairperson', level: 'international' } })];
-  assert('peranan+peringkat lebih tinggi = sumbangan lebih tinggi', scoreBreakdown('S1', 'LEA', high, NOW).score > scoreBreakdown('S1', 'LEA', low, NOW).score);
+  const low = [
+    ev({ id: 'l', points: 5, weight_factors: { role: 'participant', level: 'faculty' } }),
+  ];
+  const high = [
+    ev({ id: 'h', points: 5, weight_factors: { role: 'chairperson', level: 'international' } }),
+  ];
+  assert(
+    'peranan+peringkat lebih tinggi = sumbangan lebih tinggi',
+    scoreBreakdown('S1', 'LEA', high, NOW).score > scoreBreakdown('S1', 'LEA', low, NOW).score,
+  );
 }
 
 // 7) recalculateStudent memulangkan satu skor per kompetensi.
@@ -143,8 +187,14 @@ function report(partial?: Partial<Report>): Report {
 // 8) Hanya program Lulus Sepenuhnya + laporan Disahkan yang layak.
 {
   assert('lulus + disahkan layak', qualifiesForEvidence(app(), report()));
-  assert('permohonan belum lulus tidak layak', deriveEvidence(app({ status: 'Menunggu Semakan' }), report()).length === 0);
-  assert('laporan belum disahkan tidak layak', deriveEvidence(app(), report({ status: 'Dihantar' })).length === 0);
+  assert(
+    'permohonan belum lulus tidak layak',
+    deriveEvidence(app({ status: 'Menunggu Semakan' }), report()).length === 0,
+  );
+  assert(
+    'laporan belum disahkan tidak layak',
+    deriveEvidence(app(), report({ status: 'Dihantar' })).length === 0,
+  );
   assert('tiada laporan tidak layak', deriveEvidence(app(), undefined).length === 0);
 }
 
@@ -153,11 +203,23 @@ function report(partial?: Partial<Report>): Report {
   const rows1 = deriveEvidence(app(), report());
   const rows2 = deriveEvidence(app(), report());
   assert('sekurang-kurangnya LEA+PRJ+FIN+kategori dijana', rows1.length >= 4);
-  assert('semua evidence terbitan berstatus approved', rows1.every((e) => e.status === 'approved'));
-  assert('ID deterministik — jana semula memberi ID sama', rows1.map((e) => e.id).join() === rows2.map((e) => e.id).join());
+  assert(
+    'semua evidence terbitan berstatus approved',
+    rows1.every((e) => e.status === 'approved'),
+  );
+  assert(
+    'ID deterministik — jana semula memberi ID sama',
+    rows1.map((e) => e.id).join() === rows2.map((e) => e.id).join(),
+  );
   assert('ID unik dalam satu program', new Set(rows1.map((e) => e.id)).size === rows1.length);
-  assert('student_id = applicantId', rows1.every((e) => e.student_id === 'UID1'));
-  assert('source_id = applications.id', rows1.every((e) => e.source_id === 'KM.25-26.001'));
+  assert(
+    'student_id = applicantId',
+    rows1.every((e) => e.student_id === 'UID1'),
+  );
+  assert(
+    'source_id = applications.id',
+    rows1.every((e) => e.source_id === 'KM.25-26.001'),
+  );
 }
 
 // 10) Pemetaan peranan & peringkat betul.
@@ -166,11 +228,20 @@ function report(partial?: Partial<Report>): Report {
   const lea = rows.find((e) => e.competency_id === 'LEA' && e.source_type === 'committee_role')!;
   assert('Pengarah → chairperson', lea.weight_factors.role === 'chairperson');
   assert('Universiti → university', lea.weight_factors.level === 'university');
-  const sec = deriveEvidence(app({ applicantPosition: 'Setiausaha' }), report())
-    .find((e) => e.competency_id === 'LEA')!;
+  const sec = deriveEvidence(app({ applicantPosition: 'Setiausaha' }), report()).find(
+    (e) => e.competency_id === 'LEA',
+  )!;
   assert('Setiausaha → secretary', sec.weight_factors.role === 'secretary');
-  assert('semua peringkat e-Kesatuan dipetakan', ['Antarabangsa', 'Kebangsaan', 'Negeri', 'Universiti', 'Kolej atau Fakulti'].every((l) => LEVEL_MAP[l] !== undefined));
-  assert('semua jawatan pemohon dipetakan', ['Pengarah', 'Setiausaha'].every((r) => ROLE_MAP[r] !== undefined));
+  assert(
+    'semua peringkat e-Kesatuan dipetakan',
+    ['Antarabangsa', 'Kebangsaan', 'Negeri', 'Universiti', 'Kolej atau Fakulti'].every(
+      (l) => LEVEL_MAP[l] !== undefined,
+    ),
+  );
+  assert(
+    'semua jawatan pemohon dipetakan',
+    ['Pengarah', 'Setiausaha'].every((r) => ROLE_MAP[r] !== undefined),
+  );
 }
 
 // 11) Dedupe: kategori & kemahiran insaniah yang jatuh pada kompetensi sama
@@ -178,33 +249,73 @@ function report(partial?: Partial<Report>): Report {
 {
   const rows = deriveEvidence(
     app({ category: 'Keusahawanan', softSkills: ['Kemahiran Keusahawanan'] }),
-    report()
+    report(),
   );
-  const entAchievements = rows.filter((e) => e.competency_id === 'ENT' && e.source_type === 'achievement');
+  const entAchievements = rows.filter(
+    (e) => e.competency_id === 'ENT' && e.source_type === 'achievement',
+  );
   assert('tiada rekod berganda kompetensi sama', entAchievements.length === 1);
 }
 
 // 12) Kategori Sukan menjana evidence SPO; kemahiran insaniah dipetakan.
 {
   const rows = deriveEvidence(app(), report());
-  assert('kategori Sukan → SPO', rows.some((e) => e.competency_id === 'SPO'));
-  assert('Kemahiran Kerja Berpasukan → NET', rows.some((e) => e.competency_id === 'NET'));
-  assert('bajet disahkan → FIN', rows.some((e) => e.competency_id === 'FIN'));
+  assert(
+    'kategori Sukan → SPO',
+    rows.some((e) => e.competency_id === 'SPO'),
+  );
+  assert(
+    'Kemahiran Kerja Berpasukan → NET',
+    rows.some((e) => e.competency_id === 'NET'),
+  );
+  assert(
+    'bajet disahkan → FIN',
+    rows.some((e) => e.competency_id === 'FIN'),
+  );
 }
 
 console.log('\nSkor keseluruhan & jalur:');
 
 // 13) Skor keseluruhan = purata 3 skor tertinggi; 0 tanpa evidence.
 {
-  const scores = recalculateStudent('S1', COMPETENCY_CODES, [
-    ev({ id: 'a', competency_id: 'LEA', points: 8, weight_factors: { role: 'chairperson', level: 'national' }, event_date: NOW }),
-    ev({ id: 'b', competency_id: 'PRJ', points: 6, weight_factors: { role: 'chairperson', level: 'national' }, event_date: NOW }),
-    ev({ id: 'c', competency_id: 'FIN', points: 4, weight_factors: { level: 'university' }, event_date: NOW }),
-  ], NOW);
-  const top3 = scores.map((s) => s.score).sort((a, b) => b - a).slice(0, 3);
+  const scores = recalculateStudent(
+    'S1',
+    COMPETENCY_CODES,
+    [
+      ev({
+        id: 'a',
+        competency_id: 'LEA',
+        points: 8,
+        weight_factors: { role: 'chairperson', level: 'national' },
+        event_date: NOW,
+      }),
+      ev({
+        id: 'b',
+        competency_id: 'PRJ',
+        points: 6,
+        weight_factors: { role: 'chairperson', level: 'national' },
+        event_date: NOW,
+      }),
+      ev({
+        id: 'c',
+        competency_id: 'FIN',
+        points: 4,
+        weight_factors: { level: 'university' },
+        event_date: NOW,
+      }),
+    ],
+    NOW,
+  );
+  const top3 = scores
+    .map((s) => s.score)
+    .sort((a, b) => b - a)
+    .slice(0, 3);
   const expected = Math.round((top3.reduce((a, b) => a + b, 0) / 3) * 10) / 10;
   assert('skor keseluruhan = purata 3 tertinggi', overallScore(scores) === expected);
-  assert('tiada evidence → skor keseluruhan 0', overallScore(recalculateStudent('S9', COMPETENCY_CODES, [], NOW)) === 0);
+  assert(
+    'tiada evidence → skor keseluruhan 0',
+    overallScore(recalculateStudent('S9', COMPETENCY_CODES, [], NOW)) === 0,
+  );
 }
 
 // 14) Jalur prestasi mengikut sempadan yang dipapar dalam legenda.
@@ -222,37 +333,65 @@ console.log('\nParser Import Excel:');
   const baris = {
     'Nama Pelajar': 'Sarah binti Ahmad',
     'No. Matrik': 'a210001',
-    'Jawatan': 'Pengarah',
+    Jawatan: 'Pengarah',
     'Tajuk Program': 'Festival Zapin',
-    'Kategori': 'Kebudayaan',
-    'Peringkat': 'Kebangsaan',
+    Kategori: 'Kebudayaan',
+    Peringkat: 'Kebangsaan',
     'Tarikh Mula': '01/04/2026',
     'Tarikh Tamat': '03/04/2026',
     'Bajet Diluluskan (RM)': 8000,
     'Bajet Disahkan (RM)': '6,800',
     'Bilangan Peserta': 320,
     'Kemahiran Insaniah': 'Kemahiran Kepimpinan; Skil Tidak Wujud',
-    'Objektif': 'demo',
+    Objektif: 'demo',
   };
   const { programmes, issues } = parseRows([baris]);
   assert('baris sah → 1 program', programmes.length === 1);
-  assert('tiada ralat pada baris sah', issues.every((i) => i.severity !== 'ralat'));
+  assert(
+    'tiada ralat pada baris sah',
+    issues.every((i) => i.severity !== 'ralat'),
+  );
   assert('matrik dinormalkan ke huruf besar', programmes[0]?.student.matric === 'A210001');
   assert('tarikh hh/bb/tttt dinormalkan', programmes[0]?.startDate === '2026-04-01');
   assert('bajet dengan koma dibaca', programmes[0]?.budgetVerified === 6800);
-  assert('kemahiran tidak dikenali dilangkau dengan amaran',
-    programmes[0]?.softSkills.length === 1 && issues.some((i) => i.severity === 'amaran'));
+  assert(
+    'kemahiran tidak dikenali dilangkau dengan amaran',
+    programmes[0]?.softSkills.length === 1 && issues.some((i) => i.severity === 'amaran'),
+  );
 }
 
 // 16) Baris tidak sah dilangkau dengan ralat.
 {
   const { programmes, issues } = parseRows([
-    { 'Nama Pelajar': 'X', 'Jawatan': 'Pengarah', 'Tajuk Program': 'Y', 'Peringkat': 'Universiti', 'Tarikh Mula': '01/01/2026' }, // tiada matrik
-    { 'Nama Pelajar': 'X', 'No. Matrik': 'A1', 'Jawatan': 'Peserta', 'Tajuk Program': 'Y', 'Peringkat': 'Universiti', 'Tarikh Mula': '01/01/2026' }, // jawatan salah
-    { 'Nama Pelajar': 'X', 'No. Matrik': 'A2', 'Jawatan': 'Pengarah', 'Tajuk Program': 'Y', 'Peringkat': 'Daerah', 'Tarikh Mula': '01/01/2026' }, // peringkat salah
+    {
+      'Nama Pelajar': 'X',
+      Jawatan: 'Pengarah',
+      'Tajuk Program': 'Y',
+      Peringkat: 'Universiti',
+      'Tarikh Mula': '01/01/2026',
+    }, // tiada matrik
+    {
+      'Nama Pelajar': 'X',
+      'No. Matrik': 'A1',
+      Jawatan: 'Peserta',
+      'Tajuk Program': 'Y',
+      Peringkat: 'Universiti',
+      'Tarikh Mula': '01/01/2026',
+    }, // jawatan salah
+    {
+      'Nama Pelajar': 'X',
+      'No. Matrik': 'A2',
+      Jawatan: 'Pengarah',
+      'Tajuk Program': 'Y',
+      Peringkat: 'Daerah',
+      'Tarikh Mula': '01/01/2026',
+    }, // peringkat salah
   ]);
   assert('baris tidak sah tidak menghasilkan program', programmes.length === 0);
-  assert('setiap baris tidak sah ada ralat', issues.filter((i) => i.severity === 'ralat').length >= 3);
+  assert(
+    'setiap baris tidak sah ada ralat',
+    issues.filter((i) => i.severity === 'ralat').length >= 3,
+  );
 }
 
 // 17) Normalisasi tarikh: nombor siri Excel & ISO.
@@ -264,8 +403,11 @@ console.log('\nParser Import Excel:');
 
 // 18) Kunci penduaan tidak sensitif huruf.
 {
-  assert('kunci penduaan konsisten',
-    dedupeKey('a210001', 'Festival Zapin', '2026-04-01') === dedupeKey('A210001', 'festival zapin', '2026-04-01'));
+  assert(
+    'kunci penduaan konsisten',
+    dedupeKey('a210001', 'Festival Zapin', '2026-04-01') ===
+      dedupeKey('A210001', 'festival zapin', '2026-04-01'),
+  );
 }
 
 console.log('\nParser Import Butiran Pelajar:');
@@ -277,17 +419,20 @@ console.log('\nParser Import Butiran Pelajar:');
       'Nama Pelajar': 'Sarah binti Ahmad',
       'No. Matrik': 'a210001',
       'E-mel': 'sarah@siswa.upm.edu.my',
-      'Fakulti': 'Fakulti Kejuruteraan',
-      'Kolej': 'Kolej Canselor',
-      'Tahun': 3,
+      Fakulti: 'Fakulti Kejuruteraan',
+      Kolej: 'Kolej Canselor',
+      Tahun: 3,
       'Program Pengajian': 'Ijazah Sarjana Muda Kejuruteraan Mekanikal',
       'No. Telefon': '+60 11-1234 5678',
-      'Alamat': 'Seri Kembangan, Selangor',
+      Alamat: 'Seri Kembangan, Selangor',
     },
   ]);
   assert('baris pelajar sah → 1 pelajar', students.length === 1 && issues.length === 0);
   assert('matrik pelajar dinormalkan', students[0]?.matric === 'A210001');
-  assert('tahun & alamat dipetakan', students[0]?.studyYear === '3' && students[0]?.address === 'Seri Kembangan, Selangor');
+  assert(
+    'tahun & alamat dipetakan',
+    students[0]?.studyYear === '3' && students[0]?.address === 'Seri Kembangan, Selangor',
+  );
   assert('telefon dipetakan', students[0]?.phone === '+60 11-1234 5678');
 }
 
@@ -299,8 +444,14 @@ console.log('\nParser Import Butiran Pelajar:');
     { 'Nama Pelajar': 'Y2', 'No. Matrik': 'a1' }, // berulang (huruf kecil)
   ]);
   assert('hanya baris sah diterima', students.length === 1);
-  assert('tiada matrik → ralat', issues.some((i) => i.severity === 'ralat'));
-  assert('matrik berulang → amaran', issues.some((i) => i.severity === 'amaran' && i.message.includes('berulang')));
+  assert(
+    'tiada matrik → ralat',
+    issues.some((i) => i.severity === 'ralat'),
+  );
+  assert(
+    'matrik berulang → amaran',
+    issues.some((i) => i.severity === 'amaran' && i.message.includes('berulang')),
+  );
 }
 
 console.log(failures === 0 ? '\nSemua semakan Modul Bakat LULUS.' : `\n${failures} semakan GAGAL.`);

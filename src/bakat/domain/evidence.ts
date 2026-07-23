@@ -12,7 +12,7 @@ export function contributes(e: Evidence): boolean {
 // mengecualikannya pada pengiraan semula seterusnya (kesan segera dilihat).
 export function disputeEvidence(evidence: Evidence[], evidenceId: string): Evidence[] {
   return evidence.map((e) =>
-    e.id === evidenceId ? { ...e, status: 'disputed' as EvidenceStatus } : e
+    e.id === evidenceId ? { ...e, status: 'disputed' as EvidenceStatus } : e,
   );
 }
 
@@ -21,12 +21,12 @@ export function disputeEvidence(evidence: Evidence[], evidenceId: string): Evide
 export function voidAndReplace(
   evidence: Evidence[],
   targetId: string,
-  replacement: Evidence
+  replacement: Evidence,
 ): Evidence[] {
   const next = evidence.map((e) =>
     e.id === targetId
       ? { ...e, status: 'void' as EvidenceStatus, superseded_by: replacement.id }
-      : e
+      : e,
   );
   return [...next, replacement];
 }

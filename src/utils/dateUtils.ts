@@ -25,7 +25,7 @@ export const getCurrentSemester = (date: Date = new Date()): string => {
 export const generateAcademicSessions = (count: number = 5): string[] => {
   const currentSession = getCurrentAcademicSession();
   const [startYear] = currentSession.split('/').map(Number);
-  
+
   const sessions = [];
   // Generate 2 years back and (count - 2) years forward
   for (let i = -2; i < count - 2; i++) {

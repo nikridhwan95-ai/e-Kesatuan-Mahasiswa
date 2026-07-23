@@ -5,7 +5,7 @@ Portal bersepadu yang menggabungkan dua modul yang saling berkait:
 1. **e-Kesatuan Mahasiswa** — pengurusan permohonan aktiviti, aliran kelulusan
    (Unit Semakan → Pembentangan → YDP → TNC HEPA) dan laporan pascaprogram.
 2. **Modul Bakat (Talent Hub)** — kecerdasan bakat pelajar berasaskan prinsip
-   *evidence-first* (SDD TalentOS v2.0): skor kompetensi TIDAK PERNAH disimpan
+   _evidence-first_ (SDD TalentOS v2.0): skor kompetensi TIDAK PERNAH disimpan
    sebagai kebenaran (IRON RULE §4.4); setiap skor diterbitkan semula oleh enjin
    deterministik (`src/bakat/domain/scoring.ts`) daripada rekod bukti yang
    tidak boleh diubah.
@@ -33,25 +33,25 @@ Semakan sifat enjin: `npm run check:bakat`.
 
 \`\`\`
 /src
-  /components
-    /auth               # Komponen log masuk & pendaftaran
-    /dashboard          # Papan pemuka untuk pelbagai peranan
-    /application        # Borang permohonan & muat naik kertas kerja
-    /approval           # Aliran kelulusan (ApprovalWorkflow.tsx)
-    /report             # Modul pelaporan pascaprogram
-    /bakat              # UI Modul Bakat (TalentRadar, BakatProfile, TalentSearchModule)
-    /ui                 # Komponen UI guna semula (Butang, Modal, Kad)
-  /bakat
-    /domain             # Enjin bakat TULEN (types, taxonomy, multipliers, scoring, evidence)
-    derive.ts           # Jambatan: Application+Report e-Kesatuan → Evidence[]
-    evidenceService.ts  # Servis Firestore koleksi 'evidence' (sync idempotent, dispute)
-  /services
-    /firebase           # Konfigurasi & fungsi Firestore/Storage
-    /ai                 # Integrasi API Google Gemini (summarizer.ts)
-  /types                # Definisi TypeScript (index.ts)
-  /utils                # Fungsi utiliti (format tarikh, penjanaan PDF)
-  /hooks                # Custom React Hooks (useAuth, useApplication)
-  /context              # React Context (AuthContext)
+/components
+/auth # Komponen log masuk & pendaftaran
+/dashboard # Papan pemuka untuk pelbagai peranan
+/application # Borang permohonan & muat naik kertas kerja
+/approval # Aliran kelulusan (ApprovalWorkflow.tsx)
+/report # Modul pelaporan pascaprogram
+/bakat # UI Modul Bakat (TalentRadar, BakatProfile, TalentSearchModule)
+/ui # Komponen UI guna semula (Butang, Modal, Kad)
+/bakat
+/domain # Enjin bakat TULEN (types, taxonomy, multipliers, scoring, evidence)
+derive.ts # Jambatan: Application+Report e-Kesatuan → Evidence[]
+evidenceService.ts # Servis Firestore koleksi 'evidence' (sync idempotent, dispute)
+/services
+/firebase # Konfigurasi & fungsi Firestore/Storage
+/ai # Integrasi API Google Gemini (summarizer.ts)
+/types # Definisi TypeScript (index.ts)
+/utils # Fungsi utiliti (format tarikh, penjanaan PDF)
+/hooks # Custom React Hooks (useAuth, useApplication)
+/context # React Context (AuthContext)
 \`\`\`
 
 ## 2. Skema Pangkalan Data (Supabase / Postgres)
@@ -69,7 +69,9 @@ yang sama (jadual \`presentationSessions\` dinamakan \`presentation_sessions\`;
 \`settings\` ialah jadual baris fleksibel \`id → data jsonb\`).
 
 ### Koleksi: \`users\`
+
 Menyimpan profil pengguna dan kawalan akses berasaskan peranan (RBAC).
+
 - \`uid\` (String) - ID unik dari Firebase Auth
 - \`name\` (String) - Nama penuh
 - \`email\` (String) - E-mel universiti
@@ -80,7 +82,9 @@ Menyimpan profil pengguna dan kawalan akses berasaskan peranan (RBAC).
 - \`createdAt\` (Timestamp)
 
 ### Koleksi: \`applications\`
+
 Menyimpan maklumat utama permohonan program.
+
 - \`id\` (String) - ID Permohonan
 - \`studentId\` (String) - Rujukan ke \`users.uid\`
 - \`title\` (String) - Tajuk program
@@ -98,7 +102,9 @@ Menyimpan maklumat utama permohonan program.
 - \`updatedAt\` (Timestamp)
 
 ### Koleksi: \`application_versions\` (Sub-koleksi atau Koleksi Berasingan)
+
 Menguruskan kawalan versi kertas kerja (Version Control).
+
 - \`id\` (String)
 - \`applicationId\` (String) - Rujukan ke \`applications.id\`
 - \`version\` (Number) - Nombor versi (1, 2, 3...)
@@ -107,7 +113,9 @@ Menguruskan kawalan versi kertas kerja (Version Control).
 - \`comments\` (String, Pilihan) - Nota pembetulan dari pelajar
 
 ### Koleksi: \`reviews\`
+
 Menyimpan sejarah semakan dan komen dari pelbagai pihak (Penyemak, Urus Setia, YDP, TNC).
+
 - \`id\` (String)
 - \`applicationId\` (String) - Rujukan ke \`applications.id\`
 - \`reviewerId\` (String) - Rujukan ke \`users.uid\`
@@ -116,7 +124,9 @@ Menyimpan sejarah semakan dan komen dari pelbagai pihak (Penyemak, Urus Setia, Y
 - \`createdAt\` (Timestamp)
 
 ### Koleksi: \`reports\`
+
 Menyimpan laporan pascaprogram.
+
 - \`id\` (String)
 - \`applicationId\` (String) - Rujukan ke \`applications.id\`
 - \`studentId\` (String) - Rujukan ke \`users.uid\`
@@ -128,11 +138,12 @@ Menyimpan laporan pascaprogram.
 - \`createdAt\` (Timestamp)
 
 ### Koleksi: \`evidence\` (Modul Bakat)
+
 Rekod evidence kompetensi yang TIDAK BOLEH DIUBAH — sumber tunggal kebenaran
 untuk skor bakat. Skor TIDAK disimpan di mana-mana; ia dikira semula oleh
 enjin (\`src/bakat/domain/scoring.ts\`) setiap kali dipaparkan.
 
-- \`id\` (String) - Deterministik: \`{applicationId}__{sourceType}__{competencyCode}\`
+- \`id\` (String) - Deterministik: \`{applicationId}**{sourceType}**{competencyCode}\`
 - \`student_id\` (String) - Rujukan ke \`users.uid\`
 - \`source_type\` (String) - \`participation\` | \`committee_role\` | \`competition_result\` | \`certificate\` | \`achievement\` | \`manual_endorsement\`
 - \`source_id\` (String) - Rujukan polimorfik (bagi evidence terbitan: \`applications.id\`)

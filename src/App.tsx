@@ -4,7 +4,25 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, CheckSquare, FileBarChart, LogOut, User, Settings, Clock, LogIn, ChevronDown, ChevronUp, AlertCircle, BarChart2, Menu, X, Radar, FileSpreadsheet } from 'lucide-react';
+import {
+  LayoutDashboard,
+  FileText,
+  CheckSquare,
+  FileBarChart,
+  LogOut,
+  User,
+  Settings,
+  Clock,
+  LogIn,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  BarChart2,
+  Menu,
+  X,
+  Radar,
+  FileSpreadsheet,
+} from 'lucide-react';
 import AnalyticsDashboard from './components/dashboard/AnalyticsDashboard';
 import ApplicationModule from './components/application/ApplicationModule';
 import ReportModule from './components/report/ReportModule';
@@ -21,10 +39,36 @@ import TalentSearchModule from './components/bakat/TalentSearchModule';
 import StudentDirectoryModule from './components/bakat/StudentDirectoryModule';
 import ExcelImportModule from './components/import/ExcelImportModule';
 import { UserRole, User as UserType } from './types';
-import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_USERNAME, PORTAL_ADMIN_EMAIL } from './supabase';
-import { getUserProfile, createUserProfile, updateUserProfile, deleteAllApplications, getUsers, getUserByEmail } from './services/dataService';
+import {
+  supabase,
+  toAppUser,
+  AppUser,
+  usernameToEmail,
+  PORTAL_USERNAME,
+  PORTAL_ADMIN_EMAIL,
+} from './supabase';
+import {
+  getUserProfile,
+  createUserProfile,
+  updateUserProfile,
+  deleteAllApplications,
+  getUsers,
+  getUserByEmail,
+} from './services/dataService';
 
-type Tab = 'dashboard' | 'applications' | 'approvals' | 'reports' | 'settings' | 'profile' | 'presentations' | 'archive' | 'analytics' | 'bakat' | 'students' | 'import';
+type Tab =
+  | 'dashboard'
+  | 'applications'
+  | 'approvals'
+  | 'reports'
+  | 'settings'
+  | 'profile'
+  | 'presentations'
+  | 'archive'
+  | 'analytics'
+  | 'bakat'
+  | 'students'
+  | 'import';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -42,8 +86,11 @@ export default function App() {
   const [newRoleValue, setNewRoleValue] = useState<UserRole>('unit_semakan');
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [openAccordion, setOpenAccordion] = useState<string | null>('kategori');
-  
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'success' | 'error';
+  } | null>(null);
 
   const showNotification = (message: string, type: 'success' | 'error') => {
     setNotification({ message, type });
@@ -80,17 +127,23 @@ export default function App() {
       let data = await getUserProfile(currentUser.uid);
 
       if (!data) {
-        const emailName = currentUser.email ? currentUser.email.split('@')[0].replace(/\./g, ' ').replace(/\d+/g, '').trim() : 'New User';
-        const formattedName = emailName.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        const emailName = currentUser.email
+          ? currentUser.email.split('@')[0].replace(/\./g, ' ').replace(/\d+/g, '').trim()
+          : 'New User';
+        const formattedName = emailName
+          .split(' ')
+          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
 
         const newProfile: Partial<UserType> = {
           email: currentUser.email || '',
-          name: currentUser.email === PORTAL_ADMIN_EMAIL
-            ? 'Urus Setia BHEP UPM'
-            : currentUser.displayName || formattedName || 'New User',
+          name:
+            currentUser.email === PORTAL_ADMIN_EMAIL
+              ? 'Urus Setia BHEP UPM'
+              : currentUser.displayName || formattedName || 'New User',
           role: isMasterAdmin ? 'admin' : 'student',
           uid: currentUser.uid,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         };
         await createUserProfile(currentUser.uid, newProfile);
         data = await getUserProfile(currentUser.uid);
@@ -107,7 +160,10 @@ export default function App() {
       }
     } catch (error) {
       console.error('Error loading profile:', error);
-      showNotification('Gagal memuatkan profil. Pastikan supabase/schema.sql telah dijalankan.', 'error');
+      showNotification(
+        'Gagal memuatkan profil. Pastikan supabase/schema.sql telah dijalankan.',
+        'error',
+      );
     } finally {
       setLoading(false);
     }
@@ -128,7 +184,7 @@ export default function App() {
       const users = await getUsers();
       setAllUsers(users);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      console.error('Error fetching users:', error);
     }
   };
 
@@ -155,7 +211,9 @@ export default function App() {
           } else {
             // Pengesahan e-mel masih aktif — akaun perlu dicipta manual.
             setLoginError(
-              'Akaun portal belum diaktifkan. Sila matikan "Confirm email" dalam Supabase Dashboard → Authentication → Sign In / Providers → Email, atau cipta pengguna ' + email + ' secara manual di Authentication → Users (tandakan Auto Confirm).'
+              'Akaun portal belum diaktifkan. Sila matikan "Confirm email" dalam Supabase Dashboard → Authentication → Sign In / Providers → Email, atau cipta pengguna ' +
+                email +
+                ' secara manual di Authentication → Users (tandakan Auto Confirm).',
             );
             setLoggingIn(false);
             return;
@@ -178,7 +236,7 @@ export default function App() {
     try {
       await supabase.auth.signOut();
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error('Logout failed:', error);
     }
   };
 
@@ -187,7 +245,7 @@ export default function App() {
       showNotification('Sila masukkan alamat e-mel.', 'error');
       return;
     }
-    
+
     setIsUpdatingRole(true);
     try {
       const targetUser = await getUserByEmail(newRoleEmail);
@@ -197,24 +255,27 @@ export default function App() {
         setNewRoleEmail('');
         fetchUsers(); // Refresh list
       } else {
-        showNotification(`Pengguna dengan e-mel ${newRoleEmail} tidak dijumpai. Pengguna perlu log masuk sekurang-kurangnya sekali sebelum peranan boleh ditetapkan.`, 'error');
+        showNotification(
+          `Pengguna dengan e-mel ${newRoleEmail} tidak dijumpai. Pengguna perlu log masuk sekurang-kurangnya sekali sebelum peranan boleh ditetapkan.`,
+          'error',
+        );
       }
     } catch (error) {
-      console.error("Error updating role:", error);
+      console.error('Error updating role:', error);
       showNotification('Gagal mengemaskini peranan.', 'error');
     } finally {
       setIsUpdatingRole(false);
     }
   };
 
-  const [userToRemove, setUserToRemove] = useState<{uid: string, email: string} | null>(null);
+  const [userToRemove, setUserToRemove] = useState<{ uid: string; email: string } | null>(null);
 
   const handleRemoveRole = async (uid: string, email: string) => {
     if (MASTER_ADMIN_EMAILS.includes(email)) {
       showNotification('Peranan Master Admin tidak boleh dibuang.', 'error');
       return;
     }
-    setUserToRemove({uid, email});
+    setUserToRemove({ uid, email });
   };
 
   const confirmRemoveRole = async () => {
@@ -224,7 +285,7 @@ export default function App() {
       setUserToRemove(null);
       fetchUsers(); // Refresh list
     } catch (error) {
-      console.error("Error removing role:", error);
+      console.error('Error removing role:', error);
       setUserToRemove(null);
     }
   };
@@ -239,7 +300,7 @@ export default function App() {
       setShowDeleteConfirm(false);
       window.location.reload();
     } catch (error) {
-      console.error("Error deleting all applications:", error);
+      console.error('Error deleting all applications:', error);
       setIsDeleting(false);
     }
   };
@@ -249,22 +310,30 @@ export default function App() {
   }, [currentUserRole]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-    </div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display">Portal Aktiviti Pelajar UPM</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display">
+            Portal Aktiviti Pelajar UPM
+          </h1>
           <p className="text-slate-500 mb-2 font-medium">e-Kesatuan Mahasiswa · Radar Bakat</p>
-          <p className="text-xs text-slate-400 mb-8">Pengurusan aktiviti pelajar dan kecerdasan bakat dalam satu portal bersepadu</p>
+          <p className="text-xs text-slate-400 mb-8">
+            Pengurusan aktiviti pelajar dan kecerdasan bakat dalam satu portal bersepadu
+          </p>
 
           <form onSubmit={handleLogin} className="space-y-4 text-left">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Nama Pengguna</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Nama Pengguna
+              </label>
               <input
                 type="text"
                 value={loginUsername}
@@ -304,18 +373,20 @@ export default function App() {
           </form>
         </div>
         {notification && (
-          <div className={`fixed top-4 right-4 z-[100] max-w-md px-6 py-4 rounded-2xl shadow-2xl border text-sm font-bold ${
-            notification.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
+          <div
+            className={`fixed top-4 right-4 z-[100] max-w-md px-6 py-4 rounded-2xl shadow-2xl border text-sm font-bold ${
+              notification.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}
+          >
             {notification.message}
           </div>
         )}
       </div>
     );
   }
-  
+
   // Navigasi disusun dalam TIGA kumpulan utama:
   // 1. e-Kesatuan Mahasiswa  2. Portal Bakat  3. Tetapan Sistem
   type NavItem = { id: Tab; label: string; icon: any };
@@ -344,7 +415,11 @@ export default function App() {
         eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         break;
       case 'unit_kertas_kerja':
-        eKesatuan.push({ id: 'approvals', label: 'Semakan Pindaan Kertas Kerja', icon: CheckSquare });
+        eKesatuan.push({
+          id: 'approvals',
+          label: 'Semakan Pindaan Kertas Kerja',
+          icon: CheckSquare,
+        });
         eKesatuan.push({ id: 'archive', label: 'Kertas Kerja yang Diluluskan', icon: FileText });
         tetapan.push({ id: 'settings', label: 'Tetapan Surat', icon: Settings });
         break;
@@ -395,14 +470,19 @@ export default function App() {
           return (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Profil Bakat</h2>
+                <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
+                  Profil Bakat
+                </h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Bakat anda yang terbukti — setiap skor diterbitkan daripada bukti program yang disahkan.
+                  Bakat anda yang terbukti — setiap skor diterbitkan daripada bukti program yang
+                  disahkan.
                 </p>
               </div>
               <BakatProfile
                 studentId={user.uid}
-                studentName={userData?.displayName || userData?.name || user?.displayName || undefined}
+                studentName={
+                  userData?.displayName || userData?.name || user?.displayName || undefined
+                }
                 matricNumber={userData?.matricNumber}
                 faculty={userData?.faculty}
                 college={userData?.college}
@@ -454,19 +534,29 @@ export default function App() {
         return currentUserRole === 'admin' ? (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Tetapan Sistem</h2>
-              <p className="text-sm text-slate-500 mt-1">Urus peranan pengguna dan tetapan aplikasi.</p>
+              <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
+                Tetapan Sistem
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Urus peranan pengguna dan tetapan aplikasi.
+              </p>
             </div>
-            
+
             <div className="space-y-4">
               {/* 1. Pengurusan Kategori Program */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <button 
+                <button
                   onClick={() => setOpenAccordion(openAccordion === 'kategori' ? null : 'kategori')}
                   className="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors"
                 >
-                  <h3 className="text-lg font-bold text-slate-900 font-display">1. Pengurusan Kategori Program</h3>
-                  {openAccordion === 'kategori' ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                  <h3 className="text-lg font-bold text-slate-900 font-display">
+                    1. Pengurusan Kategori Program
+                  </h3>
+                  {openAccordion === 'kategori' ? (
+                    <ChevronUp className="w-5 h-5 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-500" />
+                  )}
                 </button>
                 {openAccordion === 'kategori' && (
                   <div className="p-6 border-t border-slate-100">
@@ -477,12 +567,20 @@ export default function App() {
 
               {/* 2. Pengurusan Maklumat Organisasi */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <button 
-                  onClick={() => setOpenAccordion(openAccordion === 'organisasi' ? null : 'organisasi')}
+                <button
+                  onClick={() =>
+                    setOpenAccordion(openAccordion === 'organisasi' ? null : 'organisasi')
+                  }
                   className="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors"
                 >
-                  <h3 className="text-lg font-bold text-slate-900 font-display">2. Pengurusan Fakulti & Kolej</h3>
-                  {openAccordion === 'organisasi' ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                  <h3 className="text-lg font-bold text-slate-900 font-display">
+                    2. Pengurusan Fakulti & Kolej
+                  </h3>
+                  {openAccordion === 'organisasi' ? (
+                    <ChevronUp className="w-5 h-5 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-500" />
+                  )}
                 </button>
                 {openAccordion === 'organisasi' && (
                   <div className="p-6 border-t border-slate-100">
@@ -493,12 +591,18 @@ export default function App() {
 
               {/* 3. Tetapan Surat Kelulusan */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <button 
+                <button
                   onClick={() => setOpenAccordion(openAccordion === 'surat' ? null : 'surat')}
                   className="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors"
                 >
-                  <h3 className="text-lg font-bold text-slate-900 font-display">3. Tetapan Surat Kelulusan</h3>
-                  {openAccordion === 'surat' ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                  <h3 className="text-lg font-bold text-slate-900 font-display">
+                    3. Tetapan Surat Kelulusan
+                  </h3>
+                  {openAccordion === 'surat' ? (
+                    <ChevronUp className="w-5 h-5 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-500" />
+                  )}
                 </button>
                 {openAccordion === 'surat' && (
                   <div className="p-6 border-t border-slate-100">
@@ -509,32 +613,44 @@ export default function App() {
 
               {/* 4. Pengurusan Peranan Pengguna */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <button 
+                <button
                   onClick={() => setOpenAccordion(openAccordion === 'peranan' ? null : 'peranan')}
                   className="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors"
                 >
-                  <h3 className="text-lg font-bold text-slate-900 font-display">4. Pengurusan Peranan Pengguna</h3>
-                  {openAccordion === 'peranan' ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                  <h3 className="text-lg font-bold text-slate-900 font-display">
+                    4. Pengurusan Peranan Pengguna
+                  </h3>
+                  {openAccordion === 'peranan' ? (
+                    <ChevronUp className="w-5 h-5 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-500" />
+                  )}
                 </button>
                 {openAccordion === 'peranan' && (
                   <div className="p-6 border-t border-slate-100">
-                    <p className="text-sm text-slate-600 mb-6">Tetapkan peranan kepada alamat e-mel pengguna di sini.</p>
-                    
+                    <p className="text-sm text-slate-600 mb-6">
+                      Tetapkan peranan kepada alamat e-mel pengguna di sini.
+                    </p>
+
                     <div className="space-y-4">
                       <div className="flex gap-4 items-end">
                         <div className="flex-1">
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Alamat E-mel</label>
-                          <input 
-                            type="email" 
-                            placeholder="contoh@siswa.upm.edu.my" 
-                            className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow" 
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Alamat E-mel
+                          </label>
+                          <input
+                            type="email"
+                            placeholder="contoh@siswa.upm.edu.my"
+                            className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
                             value={newRoleEmail}
                             onChange={(e) => setNewRoleEmail(e.target.value)}
                           />
                         </div>
                         <div className="flex-1">
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Peranan</label>
-                          <select 
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Peranan
+                          </label>
+                          <select
                             className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
                             value={newRoleValue}
                             onChange={(e) => setNewRoleValue(e.target.value as UserRole)}
@@ -548,7 +664,7 @@ export default function App() {
                             <option value="tnc_hepa">TNC HEPA</option>
                           </select>
                         </div>
-                        <button 
+                        <button
                           onClick={handleAddRole}
                           disabled={isUpdatingRole}
                           className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20 disabled:opacity-50"
@@ -558,37 +674,64 @@ export default function App() {
                       </div>
 
                       <div className="mt-8 border-t border-slate-100 pt-6">
-                        <h4 className="font-semibold text-slate-900 mb-4">Senarai Pentadbir Semasa</h4>
+                        <h4 className="font-semibold text-slate-900 mb-4">
+                          Senarai Pentadbir Semasa
+                        </h4>
                         <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 max-h-96 overflow-y-auto">
-                          {allUsers.filter(u => u.role !== 'student').length === 0 ? (
-                            <p className="text-sm text-slate-500 text-center py-4">Tiada pentadbir lain ditemui.</p>
+                          {allUsers.filter((u) => u.role !== 'student').length === 0 ? (
+                            <p className="text-sm text-slate-500 text-center py-4">
+                              Tiada pentadbir lain ditemui.
+                            </p>
                           ) : (
-                            allUsers.filter(u => u.role !== 'student').map(adminUser => (
-                              <div key={adminUser.uid} className="flex justify-between items-center py-3 border-b border-slate-200 last:border-0">
-                                <div>
-                                  <p className="font-medium text-slate-900">{adminUser.email}</p>
-                                  <p className="text-xs text-slate-500 capitalize">{adminUser.role === 'admin' ? 'System Admin' : adminUser.role.replace('_', ' ')}</p>
-                                </div>
-                                {!MASTER_ADMIN_EMAILS.includes(adminUser.email) && (
-                                  <div className="flex items-center gap-2">
-                                    {userToRemove?.uid === adminUser.uid ? (
-                                      <div className="flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
-                                        <span className="text-xs font-semibold text-red-700">Pasti?</span>
-                                        <button onClick={confirmRemoveRole} className="text-xs font-bold text-white bg-red-600 px-2 py-1 rounded hover:bg-red-700">Ya</button>
-                                        <button onClick={() => setUserToRemove(null)} className="text-xs font-semibold text-slate-600 bg-slate-200 px-2 py-1 rounded hover:bg-slate-300">Batal</button>
-                                      </div>
-                                    ) : (
-                                      <button 
-                                        onClick={() => handleRemoveRole(adminUser.uid, adminUser.email)}
-                                        className="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
-                                      >
-                                        Buang
-                                      </button>
-                                    )}
+                            allUsers
+                              .filter((u) => u.role !== 'student')
+                              .map((adminUser) => (
+                                <div
+                                  key={adminUser.uid}
+                                  className="flex justify-between items-center py-3 border-b border-slate-200 last:border-0"
+                                >
+                                  <div>
+                                    <p className="font-medium text-slate-900">{adminUser.email}</p>
+                                    <p className="text-xs text-slate-500 capitalize">
+                                      {adminUser.role === 'admin'
+                                        ? 'System Admin'
+                                        : adminUser.role.replace('_', ' ')}
+                                    </p>
                                   </div>
-                                )}
-                              </div>
-                            ))
+                                  {!MASTER_ADMIN_EMAILS.includes(adminUser.email) && (
+                                    <div className="flex items-center gap-2">
+                                      {userToRemove?.uid === adminUser.uid ? (
+                                        <div className="flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
+                                          <span className="text-xs font-semibold text-red-700">
+                                            Pasti?
+                                          </span>
+                                          <button
+                                            onClick={confirmRemoveRole}
+                                            className="text-xs font-bold text-white bg-red-600 px-2 py-1 rounded hover:bg-red-700"
+                                          >
+                                            Ya
+                                          </button>
+                                          <button
+                                            onClick={() => setUserToRemove(null)}
+                                            className="text-xs font-semibold text-slate-600 bg-slate-200 px-2 py-1 rounded hover:bg-slate-300"
+                                          >
+                                            Batal
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={() =>
+                                            handleRemoveRole(adminUser.uid, adminUser.email)
+                                          }
+                                          className="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                                        >
+                                          Buang
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ))
                           )}
                         </div>
                       </div>
@@ -599,30 +742,43 @@ export default function App() {
 
               {/* 5. Pengurusan Data */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <button 
+                <button
                   onClick={() => setOpenAccordion(openAccordion === 'data' ? null : 'data')}
                   className="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors"
                 >
-                  <h3 className="text-lg font-bold text-slate-900 font-display">5. Pengurusan Data</h3>
-                  {openAccordion === 'data' ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                  <h3 className="text-lg font-bold text-slate-900 font-display">
+                    5. Pengurusan Data
+                  </h3>
+                  {openAccordion === 'data' ? (
+                    <ChevronUp className="w-5 h-5 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-500" />
+                  )}
                 </button>
                 {openAccordion === 'data' && (
                   <div className="p-6 border-t border-slate-100">
-                    <h3 className="text-lg font-bold text-red-600 mb-4 font-display">Pengurusan Data (Bahaya)</h3>
+                    <h3 className="text-lg font-bold text-red-600 mb-4 font-display">
+                      Pengurusan Data (Bahaya)
+                    </h3>
                     <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                      <p className="text-sm text-red-700 mb-4">Padam semua data permohonan untuk memulakan sesi baharu. Tindakan ini akan memadam semua rekod permohonan secara kekal.</p>
+                      <p className="text-sm text-red-700 mb-4">
+                        Padam semua data permohonan untuk memulakan sesi baharu. Tindakan ini akan
+                        memadam semua rekod permohonan secara kekal.
+                      </p>
                       {showDeleteConfirm ? (
                         <div className="bg-white p-4 rounded-lg border border-red-200 shadow-sm">
-                          <p className="text-sm font-bold text-slate-900 mb-3">Adakah anda pasti? Tindakan ini tidak boleh dikembalikan.</p>
+                          <p className="text-sm font-bold text-slate-900 mb-3">
+                            Adakah anda pasti? Tindakan ini tidak boleh dikembalikan.
+                          </p>
                           <div className="flex gap-3">
-                            <button 
+                            <button
                               onClick={handleStartFresh}
                               disabled={isDeleting}
                               className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                             >
                               {isDeleting ? 'Sedang Memadam...' : 'Ya, Padam Semua'}
                             </button>
-                            <button 
+                            <button
                               onClick={() => setShowDeleteConfirm(false)}
                               disabled={isDeleting}
                               className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-semibold hover:bg-slate-300 transition-colors disabled:opacity-50"
@@ -632,7 +788,7 @@ export default function App() {
                           </div>
                         </div>
                       ) : (
-                        <button 
+                        <button
                           onClick={() => setShowDeleteConfirm(true)}
                           className="bg-red-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
                         >
@@ -660,34 +816,39 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 relative">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 lg:hidden transition-opacity duration-300"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar - Corporate Navy */}
-      <aside className={`
+      <aside
+        className={`
         fixed inset-y-0 left-0 w-72 bg-slate-900 text-slate-300 flex flex-col shadow-xl z-40 
         transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+      `}
+      >
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <div className="flex-1">
             <h1 className="text-sm font-bold text-white leading-tight font-display tracking-tight">
-              Portal Aktiviti<br/>
+              Portal Aktiviti
+              <br />
               <span className="text-amber-400 text-xs block">Pelajar UPM</span>
-              <span className="text-[9px] text-slate-500 font-medium block mt-0.5">e-Kesatuan Mahasiswa · Radar Bakat</span>
+              <span className="text-[9px] text-slate-500 font-medium block mt-0.5">
+                e-Kesatuan Mahasiswa · Radar Bakat
+              </span>
             </h1>
           </div>
-          <button 
+          <button
             onClick={() => setIsSidebarOpen(false)}
             className="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-5 overflow-y-auto">
           {navGroups.map((group) => (
             <div key={group.label}>
@@ -736,7 +897,7 @@ export default function App() {
               </p>
             </div>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-700 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
           >
@@ -750,7 +911,7 @@ export default function App() {
         {/* Top Header */}
         <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 lg:px-8 shrink-0 shadow-sm z-10">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => setIsSidebarOpen(true)}
               className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
             >
@@ -774,12 +935,14 @@ export default function App() {
               </span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2 sm:gap-3">
             {user && MASTER_ADMIN_EMAILS.includes(user.email) && (
               <div className="flex items-center gap-2">
-                <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider hidden xs:block">Uji:</label>
-                <select 
+                <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider hidden xs:block">
+                  Uji:
+                </label>
+                <select
                   className="bg-slate-50 border border-slate-200 text-slate-900 text-xs sm:text-sm rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block p-1.5 sm:p-2 font-medium cursor-pointer transition-shadow hover:shadow-sm max-w-[100px] sm:max-w-none"
                   value={currentUserRole}
                   onChange={(e) => setCurrentUserRole(e.target.value as UserRole)}
@@ -800,18 +963,20 @@ export default function App() {
 
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <div className={activeTab === 'approvals' ? "w-full" : "max-w-6xl mx-auto"}>
+          <div className={activeTab === 'approvals' ? 'w-full' : 'max-w-6xl mx-auto'}>
             {renderContent()}
           </div>
         </div>
       </main>
       {/* Notification Toast */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-top-4 duration-300 ${
-          notification.type === 'success' 
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-            : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
+        <div
+          className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-top-4 duration-300 ${
+            notification.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
           {notification.type === 'success' ? (
             <CheckSquare className="w-6 h-6 text-emerald-600" />
           ) : (

@@ -28,22 +28,22 @@ insaniah → kompetensi berkaitan, dengan pendarab peranan & peringkat.
 
 ## 2. Susur masa kerja (14 commit)
 
-| Commit | Apa |
-|---|---|
-| `5e14207` | Integrasi Portal Bakat: enjin domain, derivation, UI bakat, jenama portal |
-| `5e8f518` | Reka bentuk semula UI Bakat ikut mockup TALENT HUB (kad statistik, cincin, sorotan, donat) |
-| `360708a` | Baiki grid kad kompetensi (3 lajur) |
-| `da2e459` | **Migrasi penuh Firebase → Supabase** (Auth + Postgres + Storage + RLS) |
-| `96f2713` | Auth nama pengguna + kata laluan (buang Google OAuth) |
-| `6beab39` | Pembetulan bahasa DBP (kemas kini, pascaprogram, imperatif -kan, dll.) |
-| `209e0a0` | Istilah: 'evidens' → **'bukti'**; 'Jana Bukti'; 'Faktor Masa'; 'Prospek Kepimpinan' |
-| `cdc527e` | Modul Import Excel (program lepas pukal) |
-| `de00d35` | Sidebar 3 kumpulan: e-Kesatuan Mahasiswa / Portal Bakat / Tetapan Sistem |
-| `3bb9dfc` | Radar bakat: papar HANYA kompetensi berskor, skala automatik |
+| Commit    | Apa                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------- |
+| `5e14207` | Integrasi Portal Bakat: enjin domain, derivation, UI bakat, jenama portal                   |
+| `5e8f518` | Reka bentuk semula UI Bakat ikut mockup TALENT HUB (kad statistik, cincin, sorotan, donat)  |
+| `360708a` | Baiki grid kad kompetensi (3 lajur)                                                         |
+| `da2e459` | **Migrasi penuh Firebase → Supabase** (Auth + Postgres + Storage + RLS)                     |
+| `96f2713` | Auth nama pengguna + kata laluan (buang Google OAuth)                                       |
+| `6beab39` | Pembetulan bahasa DBP (kemas kini, pascaprogram, imperatif -kan, dll.)                      |
+| `209e0a0` | Istilah: 'evidens' → **'bukti'**; 'Jana Bukti'; 'Faktor Masa'; 'Prospek Kepimpinan'         |
+| `cdc527e` | Modul Import Excel (program lepas pukal)                                                    |
+| `de00d35` | Sidebar 3 kumpulan: e-Kesatuan Mahasiswa / Portal Bakat / Tetapan Sistem                    |
+| `3bb9dfc` | Radar bakat: papar HANYA kompetensi berskor, skala automatik                                |
 | `0664cf9` | Revamp Analitik Data (baiki pepijat app.name, warna kategori tetap CVD-safe, bar bertindan) |
-| `8028de1` | Analitik: 7 penapis + Sorotan Keputusan + jadual Prestasi Mengikut Teras |
-| `23ba04b` | Import Data (Excel) dialihkan ke kumpulan Tetapan Sistem |
-| `b46bcf5` | Direktori Profil Pelajar + import Excel butiran pelajar + medan baharu users |
+| `8028de1` | Analitik: 7 penapis + Sorotan Keputusan + jadual Prestasi Mengikut Teras                    |
+| `23ba04b` | Import Data (Excel) dialihkan ke kumpulan Tetapan Sistem                                    |
+| `b46bcf5` | Direktori Profil Pelajar + import Excel butiran pelajar + medan baharu users                |
 
 ## 3. Seni bina & susunan kod
 
@@ -159,6 +159,7 @@ npm run build         # vite build
 ```
 
 **Verifikasi visual tanpa Supabase sebenar** (sandbox menyekat supabase.co):
+
 1. `cp dev/mocksb.example.ts src/mocksb.ts`
 2. Tambah alias SEMENTARA dalam `vite.config.ts` → `resolve.alias`:
    `'@supabase/supabase-js': path.resolve(__dirname, 'src/mocksb.ts'),`
