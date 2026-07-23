@@ -1,4 +1,12 @@
-export type UserRole = 'student' | 'unit_semakan' | 'unit_pembentangan' | 'unit_kertas_kerja' | 'unit_pelaporan' | 'admin' | 'ydp' | 'tnc_hepa';
+export type UserRole =
+  | 'student'
+  | 'unit_semakan'
+  | 'unit_pembentangan'
+  | 'unit_kertas_kerja'
+  | 'unit_pelaporan'
+  | 'admin'
+  | 'ydp'
+  | 'tnc_hepa';
 
 export interface User {
   uid: string;
@@ -18,7 +26,18 @@ export interface User {
   createdAt: string;
 }
 
-export type ApplicationStatus = 'Draf' | 'Menunggu Semakan' | 'Perlu Pembetulan' | 'Menunggu Pembentangan' | 'Menunggu Kelulusan YDP' | 'Menunggu Kelulusan TNC HEPA' | 'Lulus Sepenuhnya' | 'Ditolak' | 'Dibatalkan' | 'Menunggu Semakan Pindaan' | 'Menunggu Kelulusan YDP (Pindaan)';
+export type ApplicationStatus =
+  | 'Draf'
+  | 'Menunggu Semakan'
+  | 'Perlu Pembetulan'
+  | 'Menunggu Pembentangan'
+  | 'Menunggu Kelulusan YDP'
+  | 'Menunggu Kelulusan TNC HEPA'
+  | 'Lulus Sepenuhnya'
+  | 'Ditolak'
+  | 'Dibatalkan'
+  | 'Menunggu Semakan Pindaan'
+  | 'Menunggu Kelulusan YDP (Pindaan)';
 
 export interface Application {
   id: string;
@@ -42,11 +61,6 @@ export interface Application {
   presentationSessionId?: string;
   presentationDate?: string;
   presentationRoom?: number;
-  aiSummary?: {
-    executiveSummary: string;
-    budgetAnalysis: string;
-    impact: string;
-  };
   reviewerComment?: string;
   approvedAmount?: number;
   createdAt: string;

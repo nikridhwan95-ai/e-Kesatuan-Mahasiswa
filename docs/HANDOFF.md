@@ -2,7 +2,7 @@
 
 > Dokumen ini ditulis untuk sesi/perbualan seterusnya memahami sepenuhnya apa
 > yang telah berlaku. Baca dokumen ini SEBELUM membuat sebarang perubahan.
-> Kemas kini terakhir: 2026-07-20.
+> Kemas kini terakhir: 2026-07-23 (selepas audit penuh + remediasi 8 fasa).
 
 ## 1. Apa projek ini
 
@@ -12,187 +12,156 @@ Pelajar (BHEP) UPM yang menggabungkan DUA sistem yang saling berkait:
 1. **e-Kesatuan Mahasiswa** — pengurusan permohonan aktiviti pelajar: borang
    kertas kerja → aliran kelulusan (Unit Semakan → Pembentangan → YDP MPP →
    TNC HEPA) → laporan pascaprogram disahkan Unit Pelaporan.
-2. **Portal Bakat / Modul Bakat** (dari projek `portalbakatbhepupm`, SDD
-   TalentOS v2.0) — kecerdasan bakat pelajar berasaskan **bukti** (evidence).
-
-**Titik integrasi teras:** apabila permohonan mencapai `Lulus Sepenuhnya` DAN
-laporannya `Disahkan`, sistem menjana rekod bukti bakat secara automatik
-(`src/bakat/derive.ts`) — jawatan Pengarah/Setiausaha → Kepimpinan/Pengurusan
-Projek/Literasi Kewangan, kategori 8 Teras → kompetensi teras, kemahiran
-insaniah → kompetensi berkaitan, dengan pendarab peranan & peringkat.
+2. **Portal Bakat / Radar Bakat** (SDD TalentOS v2.0) — kecerdasan bakat
+   pelajar berasaskan **bukti** (evidence-first).
 
 - **Repo:** `nikridhwan95-ai/e-Kesatuan-Mahasiswa`
-- **Branch kerja:** `claude/talent-hub-portal-integration-xvcdtn` (14 commit,
-  semuanya di-push; BELUM digabung ke `main`, PR belum dibuat)
+- **Branch kerja semasa:** `claude/init-v6w4pq` (audit penuh + remediasi
+  8 fasa; semuanya di-push; belum digabung ke `main`)
 - **Bahasa UI:** Bahasa Melayu Malaysia piawaian DBP (lihat §7)
+- Seni bina terperinci: `docs/SCHEMA.md` (telah ditulis semula — kini tepat)
 
-## 2. Susur masa kerja (14 commit)
+## 2. Audit penuh + remediasi (branch ini)
 
-| Commit | Apa |
+Audit tiga dimensi (keselamatan/backend, frontend, enjin/peralatan)
+menemui ~45 isu; kesemuanya ditangani dalam 8 fasa (satu siri komit per
+fasa — lihat `git log` untuk butiran):
+
+| Fasa | Ringkasan |
 |---|---|
-| `5e14207` | Integrasi Portal Bakat: enjin domain, derivation, UI bakat, jenama portal |
-| `5e8f518` | Reka bentuk semula UI Bakat ikut mockup TALENT HUB (kad statistik, cincin, sorotan, donat) |
-| `360708a` | Baiki grid kad kompetensi (3 lajur) |
-| `da2e459` | **Migrasi penuh Firebase → Supabase** (Auth + Postgres + Storage + RLS) |
-| `96f2713` | Auth nama pengguna + kata laluan (buang Google OAuth) |
-| `6beab39` | Pembetulan bahasa DBP (kemas kini, pascaprogram, imperatif -kan, dll.) |
-| `209e0a0` | Istilah: 'evidens' → **'bukti'**; 'Jana Bukti'; 'Faktor Masa'; 'Prospek Kepimpinan' |
-| `cdc527e` | Modul Import Excel (program lepas pukal) |
-| `de00d35` | Sidebar 3 kumpulan: e-Kesatuan Mahasiswa / Portal Bakat / Tetapan Sistem |
-| `3bb9dfc` | Radar bakat: papar HANYA kompetensi berskor, skala automatik |
-| `0664cf9` | Revamp Analitik Data (baiki pepijat app.name, warna kategori tetap CVD-safe, bar bertindan) |
-| `8028de1` | Analitik: 7 penapis + Sorotan Keputusan + jadual Prestasi Mengikut Teras |
-| `23ba04b` | Import Data (Excel) dialihkan ke kumpulan Tetapan Sistem |
-| `b46bcf5` | Direktori Profil Pelajar + import Excel butiran pelajar + medan baharu users |
+| 1 | Kod mati dibuang (types/index.ts lama, FacultyCollegeSettings, summarizer AI mati, peranan 'advisor' tidak sah); 5 kebergantungan tidak digunakan dibuang; @types/react + TypeScript **strict** (hijau); ESLint + Prettier; **CI GitHub Actions** |
+| 2 | **is_admin() tidak lagi mempercayai e-mel dikod keras** (vektor rampasan admin ditutup); peranan dibenih dari DB; **baldi Storage kini PERIBADI** dengan URL bertandatangan (PII pelajar tidak lagi terdedah awam); signUp automatik dibuang |
+| 3 | Trigger integriti DB (anti-pemalsuan medan/status, INSERT tanpa kelulusan kendiri, bukti tidak boleh ubah); kunci asing NOT VALID+VALIDATE; kekangan CHECK/UNIQUE; senarai putih medan klien; unjuran lajur (senarai pengguna tanpa telefon/alamat); pembersihan yatim semasa padam |
+| 4 | **Kunci Gemini dialihkan ke Fungsi Edge `jana-analisis`** (JWT + semakan peranan, prompt sisi pelayan) — kunci tidak lagi dibina ke dalam bundle awam |
+| 5 | Enjin tahan input rosak (NaN decay/attendance → neutral 1, klamp points 0–10); **overallScore = purata bukan-sifar top-3** (1 kompetensi @90 → 90, bukan 30 — perubahan paparan!); asOf boleh disuntik; import selamat-gagal (perancang tulen importPlan.ts, padam-semula pada kegagalan laporan, butang **Pulihkan Import**); **check:bakat 53 → 87 semakan** |
+| 6 | Pepijat sebenar dibaiki: tarikh semakan yang dipilih pentadbir kini DISIMPAN; garis masa tarikh rekaan "10–16 Okt" → cap masa sebenar; surat rasmi mencetak tempat sebenar; medan Tarikh Tamat baharu; ToastProvider/ConfirmDialog/ErrorBoundary berkongsi; semua alert/confirm/prompt asli dibuang; keadaan ralat 'Cuba Semula' |
+| 7 | ApplicationModule 1797 baris → 5 komponen; Tetapan Sistem diekstrak dari App.tsx (841 → ~580 baris); StatusBadge berkongsi (6 pelaksanaan → 1); constants.ts (peruntukan + palet CVD-safe); UI palsu dibuang (penomboran mati, butang tanpa fungsi); penapis carian/status diwayarkan |
+| 8 | React.lazy semua tab + manualChunks + xlsx dinamik: **bundle awal 1,855 KB → 218 KB** (recharts/xlsx dimuat atas permintaan); cache TTL ringan (getUsers ×7 pendua dihapuskan); favicon + meta; dokumentasi ditulis semula |
 
-## 3. Seni bina & susunan kod
-
-Vite + React 19 + Tailwind v4 + TypeScript (tiada @types/react — komponen yang
-menerima `key` mesti mengisytiharkannya dalam jenis props; sudah ada 2 contoh).
-Backend: **Supabase** (projek `tmtjnkexvqlvdxrmnugb`, klien dalam
-`src/supabase.ts` dengan publishable key — selamat untuk klien, kawalan akses
-melalui RLS).
-
-```
-src/
-  App.tsx                      # shell: auth, sidebar 3 kumpulan, routing tab
-  supabase.ts                  # klien + usernameToEmail + AppUser
-  types.ts                     # User/Application/Report (users kini ada studyYear/programme/address)
-  services/
-    dataService.ts             # SEMUA akses DB e-Kesatuan (API sama spt firestoreService lama)
-    importParser.ts            # parser Excel TULEN (program + pelajar) — diuji
-    importService.ts           # I/O import (importProgrammes, importStudents)
-  bakat/
-    domain/                    # enjin skor TULEN (types, taxonomy 16 kompetensi, multipliers, scoring, evidence)
-    derive.ts                  # JAMBATAN e-Kesatuan → bukti (pemetaan jawatan/peringkat/kategori/kemahiran)
-    evidenceService.ts         # jadual 'evidence' Supabase (sync idempotent, dispute)
-    insights.ts                # skor keseluruhan, jalur, statistik kohort, sorotan
-  components/
-    bakat/                     # TalentRadar, BakatProfile, TalentSearchModule (Radar Bakat),
-                               # StudentDirectoryModule (Profil Pelajar), ui.tsx (StatCard, ProgressRing...)
-    import/ExcelImportModule.tsx  # 2 mod: Program Lepas / Butiran Pelajar
-    admin/DataAnalyticsModule.tsx # Analitik Data (7 penapis, Sorotan Keputusan)
-    ... (modul asal e-Kesatuan: application, review, presentation, report, dll.)
-supabase/schema.sql            # SUMBER KEBENARAN skema Postgres + RLS + storage (idempotent)
-scripts/check-bakat.ts         # 53 semakan sifat (enjin skor, derivation, parser import)
-dev/mocksb.example.ts          # mock Supabase untuk verifikasi visual (lihat §8)
-docs/SCHEMA.md                 # dokumentasi skema & integrasi
-```
-
-## 4. Konsep teras (JANGAN langgar)
+## 3. Konsep teras (JANGAN langgar)
 
 - **IRON RULE (SDD §4.4):** skor kompetensi TIDAK PERNAH disimpan. Hanya
-  jadual `evidence` (bukti) disimpan; skor sentiasa dikira semula oleh
+  jadual `evidence` disimpan; skor sentiasa dikira semula oleh
   `src/bakat/domain/scoring.ts` daripada bukti berstatus `approved`.
-- Bukti bersifat **tidak boleh diubah** — dispute hanya menukar status;
-  penjanaan idempotent (ID deterministik `appId__sourceType__competency`,
-  upsert ON CONFLICT DO NOTHING).
-- **Skor Bakat Keseluruhan** = purata 3 skor kompetensi tertinggi. Jalur:
-  Cemerlang ≥90 / Baik 70–89 / Berkembang 50–69 / Perlu Peningkatan <50.
-  Potensi Tinggi ≥ 70.
-- Semua statistik/sorotan dikira daripada **peraturan atas data sebenar** —
-  tiada angka rekaan/AI (kecuali butang 'Jana Analisis AI' Gemini yang
-  dilabel jelas).
+  Kini turut dikuatkuasakan di DB oleh trigger `guard_evidence_update`.
+- Bukti **tidak boleh diubah** — dispute hanya menukar status; penjanaan
+  idempotent (ID deterministik, ON CONFLICT DO NOTHING).
+- **Skor Bakat Keseluruhan** = purata skor BUKAN SIFAR dalam kalangan 3
+  kompetensi tertinggi (BERUBAH pada 2026-07-23 — sebelum ini dipenuhkan
+  sifar sehingga profil sempit terhukum; skor keseluruhan dan bilangan
+  Potensi Tinggi akan NAIK untuk profil sempit). Jalur: Cemerlang ≥90 /
+  Baik 70–89 / Berkembang 50–69 / Perlu Peningkatan <50; Potensi Tinggi ≥70.
+- INN, TEC, GLO, NEG tiada laluan derivation — manual-endorsement-sahaja
+  (masa hadapan); paksi radar mereka kekal 0.
+- Semua statistik dikira daripada peraturan atas data sebenar — tiada angka
+  rekaan; satu-satunya kandungan AI ialah 'Jana Analisis AI' (kini melalui
+  Fungsi Edge).
 
-## 5. Auth & keselamatan
+## 4. Model keselamatan (SELEPAS pengukuhan)
 
-- Log masuk: **nama pengguna + kata laluan sahaja**. Nama pengguna `ekmupm`
-  dipetakan kepada akaun Supabase `ekmupm@portal-bhep.upm.edu.my`
-  (`src/supabase.ts`). Kata laluan TIDAK disimpan dalam repo (sengaja —
-  bundle klien boleh dibaca umum); ia ditetapkan oleh pemilik dalam
-  perbualan asal & semasa mencipta akaun di Supabase.
-- Akaun `ekmupm` + `nikridhwan95@gmail.com` = **master admin** (paksa peranan
-  admin, pemilih peranan "Uji" di header untuk tukar paparan peranan).
-- Model semasa: SATU akaun kongsi (mod urus setia). Pelajar TIDAK log masuk
-  sendiri; rekod pelajar dicipta melalui Import Excel (uid sintetik
-  `M-<matrik>`) atau aliran permohonan. Perbincangan lanjut: akaun individu
-  boleh dibuka kemudian tanpa ubah seni bina.
-- RLS dalam `supabase/schema.sql`: pelajar nampak/pertikai data sendiri
-  sahaja; penjanaan bukti & import oleh peranan pengurusan/admin; kunci
-  anti-naik-taraf peranan kendiri.
+- Log masuk: nama pengguna `ekmupm` → `ekmupm@portal-bhep.upm.edu.my`.
+  **Pendaftaran awam MESTI dimatikan di Dashboard** (lihat §6). Peranan
+  admin datang HANYA daripada `users.role` yang dibenih oleh
+  `supabase/schema.sql` — TIADA lagi e-mel dikod keras (gmail peribadi
+  pemilik tidak lagi admin automatik; beri peranan melalui UI Pengurusan
+  Peranan selepas log masuk sebagai akaun portal).
+- Baldi `uploads` PERIBADI: semua fail melalui URL bertandatangan 1 jam;
+  rekod lama dengan URL awam penuh masih berfungsi (getFileUrl menghurai
+  kedua-duanya) tetapi URL awam lama TIDAK lagi boleh dibuka tanpa log
+  masuk selepas skema dijalankan.
+- Pemilih peranan "Uji" di header (admin sahaja) hanya menukar PAPARAN —
+  ia tidak pernah menjadi kawalan keselamatan; kawalan sebenar ialah RLS +
+  trigger.
+- Kunci Gemini: rahsia Fungsi Edge sahaja. **Sebarang kunci yang pernah
+  dibina ke dalam bundle awam sebelum fasa ini WAJIB dibatalkan (rotate).**
 
-## 6. Ciri per modul (keadaan semasa)
+## 5. Cara verifikasi (WAJIB sebelum push)
 
-- **Sidebar 3 kumpulan:** e-Kesatuan Mahasiswa (biru) / Portal Bakat (indigo)
-  / Tetapan Sistem. Kumpulan tanpa item disembunyikan ikut peranan.
-- **Radar Bakat (admin):** kad statistik, grid 16 kompetensi bercincin,
-  jadual pelajar ikut skor, Sorotan Bakat, donat taburan, butang **Jana
-  Bukti** (backfill idempotent, ada tooltip penerangan).
-- **Profil Bakat (pelajar) / profil dalam admin:** skor keseluruhan + jalur,
-  Kekuatan Utama (bar), Ringkasan Bakat, radar (HANYA kompetensi berskor,
-  skala automatik gandaan 20, jadual jika <3 kompetensi), perincian bukti
-  (jumlah sumbangan TEPAT = skor paksi), Aktiviti Program, Lejar Bukti,
-  butang **Pertikaikan** (pelajar sahaja).
-- **Profil Pelajar (admin, Portal Bakat):** direktori semua pelajar + klik →
-  halaman profil penuh (butiran diri / Program e-Kesatuan / Profil Bakat).
-- **Analitik Data (admin):** 7 penapis (Teras, Sesi, Semester, Tahun,
-  Peringkat, Status, Impak) + Set Semula; 5 kad statistik; **Sorotan
-  Keputusan** (setiap satu ada "Tindakan:"); donat + bar bertindan (warna
-  TETAP per kategori, lulus semakan buta warna deutan ΔE 16.7 — palet dalam
-  `CATEGORY_COLORS`); jadual Prestasi Mengikut Teras (kos seorang peserta);
-  matriks peserta; kewangan semester (peruntukan RM200,000/semester =
-  `SEMESTER_ALLOCATION`); Jana Analisis AI (Gemini) dikekalkan.
-- **Import Data (Excel) (admin, Tetapan):** 2 mod dengan templat muat turun —
-  (a) **Program Lepas**: baris → pelajar + permohonan Lulus Sepenuhnya +
-  laporan Disahkan + bukti bakat; anti-penduaan matrik+tajuk+tarikh;
-  (b) **Butiran Pelajar**: cipta/kemas kini pelajar padanan matrik.
-  Kedua-duanya: pratonton dengan ralat/amaran per baris, bar kemajuan,
-  ringkasan keputusan.
-- **ReportModule:** pengesahan laporan (Disahkan) auto-jana bukti bakat.
+```bash
+npm run lint          # tsc --noEmit (strict)
+npm run check:bakat   # 87 semakan sifat — semua mesti LULUS
+npm run build         # vite build (dipecah chunk)
+npx eslint src scripts  # 0 ralat (amaran dibenarkan)
+```
+
+CI (`.github/workflows/ci.yml`) menguatkuasakan kesemuanya pada push/PR.
+
+**Verifikasi visual tanpa Supabase sebenar** (sandbox menyekat supabase.co):
+prosedur mock dalam §8 fail ini masih sama (cp `dev/mocksb.example.ts` →
+`src/mocksb.ts` + alias vite SEMENTARA), TETAPI mock itu ditulis sebelum
+fasa remediasi — ia belum melaksanakan `storage.createSignedUrl` dan
+`functions.invoke`, jadi pautan fail dan butang AI akan menunjukkan keadaan
+ralat (bukan ranap; FileLink/AnalyticsDashboard menangkap kegagalan).
+Kemas kini mock itu dahulu jika verifikasi visual penuh diperlukan.
+
+## 6. Persediaan yang MASIH MENUNGGU tindakan pemilik (IKUT TURUTAN)
+
+1. **Cipta akaun auth portal** (jika belum): Authentication → Users →
+   Add user → `ekmupm@portal-bhep.upm.edu.my` + kata laluan + Auto Confirm.
+2. **MATIKAN pendaftaran awam**: Authentication → Sign In / Providers →
+   Email → matikan "Allow new users to sign up"; KEKALKAN "Confirm email".
+   (Kritikal — menutup vektor rampasan akaun.)
+3. **Jalankan pertanyaan pra-jalanan** dalam komen `supabase/schema.sql`
+   (baris yatim + e-mel/matrik duplikat); bersihkan sebarang hasil.
+4. **Jalankan `supabase/schema.sql` DUA KALI** dalam SQL Editor — jalanan
+   kedua mesti selesai tanpa ralat (bukti keidempotenan). Ini turut menukar
+   baldi kepada peribadi dan membenih peranan admin akaun portal.
+5. **Deploy Fungsi Edge**: `supabase functions deploy jana-analisis`
+   (Verify JWT ON) + `supabase secrets set GEMINI_API_KEY=...`;
+   **rotate kunci Gemini lama** yang pernah berada dalam bundle awam.
+6. **Ujian asap**: log masuk (peranan admin muncul tanpa paksaan klien);
+   buka pautan kertas kerja lama (URL bertandatangan berfungsi); tampal URL
+   awam lama dalam tab incognito (mesti DITOLAK); cuba kemas kini
+   `approvedAmount` dari konsol pelayar semasa "Uji: Pelajar" (trigger
+   mesti menolak); klik kedua-dua butang 'Jana Analisis AI'.
+7. **Ujian hujung-ke-hujung penuh** (permohonan → kelulusan → laporan →
+   bukti) — belum pernah diuji terhadap Supabase sebenar dari sandbox.
+8. **Gabung ke `main` / buat PR** — tunggu arahan pemilik.
+9. **Deploy** (Netlify/Vercel — app Vite statik).
 
 ## 7. Piawaian bahasa (DBP) — kekalkan
 
 'kemas kini' (dua perkataan) · 'pascaprogram' (dirangkai) · **'bukti'** bukan
 'evidence/evidens' dalam teks UI (pengecam kod & jadual DB kekal `evidence`) ·
-imperatif dengan -kan (Pertikaikan, Paparkan, Segerakkan→'Jana Bukti') ·
-'daripada' untuk sumber · 'baharu' utk new · elak '&' dalam ayat · label
-'Faktor Masa' (pendarab susutan 24 bulan separuh hayat) · 'Prospek
-Kepimpinan'. Kategori data 'Akademik & Intelektual' TIDAK diubah (nilai
-tersimpan, kunci pemetaan).
+imperatif dengan -kan (Pertikaikan, Paparkan) · 'daripada' untuk sumber ·
+'baharu' utk new · elak '&' dalam ayat · label 'Faktor Masa' (susutan 24
+bulan separuh hayat) · 'Prospek Kepimpinan' · kategori 'Akademik &
+Intelektual' TIDAK diubah (nilai tersimpan, kunci pemetaan).
 
-## 8. Cara verifikasi (WAJIB sebelum push)
+## 8. Verifikasi visual dengan mock (prosedur)
 
-```bash
-npm run lint          # tsc --noEmit
-npm run check:bakat   # 53 semakan sifat — semua mesti LULUS
-npm run build         # vite build
-```
-
-**Verifikasi visual tanpa Supabase sebenar** (sandbox menyekat supabase.co):
 1. `cp dev/mocksb.example.ts src/mocksb.ts`
 2. Tambah alias SEMENTARA dalam `vite.config.ts` → `resolve.alias`:
    `'@supabase/supabase-js': path.resolve(__dirname, 'src/mocksb.ts'),`
-3. `npm run dev` → app log masuk automatik sebagai admin (Sarah) dengan data
-   contoh; pemilih peranan "Uji" di header untuk tukar paparan.
-4. Playwright + `executablePath: '/opt/pw-browsers/chromium'` untuk
-   tangkapan skrin.
-5. **WAJIB pulihkan**: buang alias, `rm src/mocksb.ts`, jalankan semula lint
-   sebelum commit. Jangan sesekali commit mock/alias.
+3. `npm run dev` → log masuk automatik sebagai admin dengan data contoh.
+4. Playwright + `executablePath: '/opt/pw-browsers/chromium'`.
+5. **WAJIB pulihkan**: buang alias, `rm src/mocksb.ts`, jalankan semula
+   lint sebelum commit. Jangan sesekali commit mock/alias.
+   (Lihat kaveat mock dalam §5.)
 
-## 9. Persediaan yang MASIH MENUNGGU tindakan pemilik
+## 9. Perkara yang dipersetujui pemilik (jangan buka semula)
 
-1. **Jalankan `supabase/schema.sql`** dalam Supabase Dashboard → SQL Editor
-   (idempotent; perlu diulang selepas commit `b46bcf5` untuk lajur baharu
-   `studyYear`/`programme`/`address` dan polisi import admin).
-2. **Cipta akaun portal**: Authentication → Users → Add user →
-   `ekmupm@portal-bhep.upm.edu.my` + kata laluan yang dipersetujui + tandakan
-   Auto Confirm. (Atau matikan 'Confirm email' untuk auto-provision.)
-3. **Redirect URL**: Authentication → URL Configuration → tambah URL app.
-4. **Ujian hujung-ke-hujung sebenar** di mesin pemilik (kitaran permohonan →
-   kelulusan → laporan → bukti) — belum pernah diuji terhadap Supabase
-   sebenar kerana proxy sandbox menyekatnya.
-5. **Gabung ke `main` / buat PR** — belum dibuat, tunggu arahan pemilik.
-6. **Deploy** (Netlify/Vercel — app Vite statik).
+Satu akaun kongsi ekmupm yang DIKUKUHKAN (bukan akaun individu) · Gemini
+melalui Fungsi Edge · remediasi penuh 8 fasa · BM sahaja, tema cerah ·
+'bukti' sebagai istilah · radar papar kompetensi berskor sahaja · import di
+Tetapan Sistem · UI TALENT HUB dengan angka BENAR sahaja.
 
-## 10. Perkara yang dipersetujui pemilik (jangan buka semula)
+## 10. Tertangguh secara sengaja (dengan sebab — jangan "baiki" tanpa fikir)
 
-Mock-data → Supabase (selesai) · gaya UI TALENT HUB dengan angka BENAR sahaja
-· satu akaun kongsi ekmupm · BM sahaja, tema cerah · 'bukti' sebagai istilah ·
-radar papar kompetensi berskor sahaja · import diletakkan di Tetapan Sistem.
+- **Lajur tarikh kekal `text`**: cast in-place atas format campuran tidak
+  dapat disahkan tanpa akses DB sebenar; dikurangkan oleh parseTarikh /
+  normalizeDate. Timbang semula hanya dengan snapshot DB di tangan.
+- **`react-hooks/exhaustive-deps` kekal 'warn'** (8 amaran corak
+  fetchData-dalam-effect yang stabil); naikkan ke 'error' selepas corak itu
+  di-refactor (useCallback) — jangan naikkan selagi CI akan gagal.
+- **Penomboran pelayan** belum ada (unjuran lajur sudah memotong muatan).
+- **FK `evidence.source_id`** sengaja tiada (bukti manual masa hadapan).
+- **Mock `dev/mocksb.example.ts`** belum tahu createSignedUrl /
+  functions.invoke (lihat §5).
 
 ## 11. Idea seterusnya (belum diminta, jangan buat tanpa arahan)
 
-Input bukti manual oleh HEP (sijil/pertandingan luar sistem) · janaan PDF
-surat kelulusan · notifikasi e-mel · trend semester Radar Bakat (perlu
-sejarah snapshot) · akaun log masuk individu pelajar · migrasi data Firebase
-lama (jika ada).
+Input bukti manual oleh HEP (mengisi INN/TEC/GLO/NEG) · notifikasi e-mel ·
+trend semester Radar Bakat (perlu sejarah snapshot) · akaun log masuk
+individu pelajar (reka bentuk RLS/trigger sedia menampung) · migrasi
+tarikh `text` → `timestamptz` · penomboran pelayan.

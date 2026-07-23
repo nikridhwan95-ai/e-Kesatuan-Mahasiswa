@@ -1,17 +1,27 @@
 // MODUL BAKAT — jenis domain teras (TS tulen, bebas kerangka).
 // Diport dari Portal Bakat UPM (TalentOS, SDD v2.0 §7.3). Union literal digunakan
-// (bukan enum) supaya kekal ringan dan mudah diserikan ke Firestore.
+// (bukan enum) supaya kekal ringan dan mudah disimpan ke pangkalan data.
 
 // ── Taksonomi kompetensi (§8.4) ─────────────────────────────────────────────
 export type CompetencyCode =
-  | 'LEA' | 'COM' | 'INN' | 'TEC' | 'ENT' | 'SPO' | 'ART' | 'RES'
-  | 'VOL' | 'CRT' | 'DIG' | 'GLO' | 'PRJ' | 'FIN' | 'NEG' | 'NET';
+  | 'LEA'
+  | 'COM'
+  | 'INN'
+  | 'TEC'
+  | 'ENT'
+  | 'SPO'
+  | 'ART'
+  | 'RES'
+  | 'VOL'
+  | 'CRT'
+  | 'DIG'
+  | 'GLO'
+  | 'PRJ'
+  | 'FIN'
+  | 'NEG'
+  | 'NET';
 
-export type CompetencyCluster =
-  | 'cognitive'
-  | 'interpersonal'
-  | 'execution'
-  | 'values';
+export type CompetencyCluster = 'cognitive' | 'interpersonal' | 'execution' | 'values';
 
 export interface Competency {
   code: CompetencyCode;
@@ -33,11 +43,7 @@ export type RoleType =
   | 'vice_chair'
   | 'chairperson'; // termasuk Pengarah Program
 
-export type ProgrammeLevel =
-  | 'faculty'
-  | 'university'
-  | 'national'
-  | 'international';
+export type ProgrammeLevel = 'faculty' | 'university' | 'national' | 'international';
 
 // ── Sumber & status evidence (§7.3) ─────────────────────────────────────────
 export type EvidenceSourceType =
@@ -53,7 +59,7 @@ export type EvidenceStatus = 'pending' | 'approved' | 'disputed' | 'void';
 // THE central record (§7.3 evidence) — satu rekod yang tidak boleh diubah per delta
 // kompetensi per fakta. Skor TIDAK PERNAH disimpan (IRON RULE §4.4); ia
 // sentiasa diterbitkan semula oleh enjin skor daripada bukti 'approved'.
-// Dalam portal bersepadu ini: student_id = users.uid (Firebase Auth) dan
+// Dalam portal bersepadu ini: student_id = users.uid (Supabase Auth) dan
 // source_id merujuk kepada applications.id e-Kesatuan bagi evidence terbitan.
 export interface Evidence {
   id: string;
@@ -77,7 +83,7 @@ export interface Evidence {
 }
 
 // Skor terbitan — output tulen enjin skor (§7.3 competency_scores).
-// Dikira semula pada masa nyata; TIDAK disimpan dalam Firestore.
+// Dikira semula pada masa nyata; TIDAK disimpan dalam pangkalan data.
 export interface CompetencyScore {
   student_id: string;
   competency_id: CompetencyCode;

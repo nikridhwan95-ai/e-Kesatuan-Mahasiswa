@@ -8,21 +8,32 @@ import { supabase } from '../supabase';
 import { Application, Report } from '../types';
 import { Evidence } from './domain';
 import { deriveEvidence } from './derive';
+import { cached, invalidate } from '../services/cache';
 
 function fail(context: string, error: { message: string } | null): never {
   throw new Error(`${context}: ${error?.message ?? 'ralat tidak diketahui'}`);
 }
 
+// Kontrak lajur eksplisit — sepadan dengan jenis Evidence (domain/types.ts).
+const EVIDENCE_COLUMNS =
+  'id,student_id,source_type,source_id,competency_id,points,weight_factors,ai_confidence,status,approved_by,approved_at,superseded_by,narrative,event_date';
+
 export async function getEvidenceForStudent(uid: string): Promise<Evidence[]> {
-  const { data, error } = await supabase.from('evidence').select('*').eq('student_id', uid);
+  const { data, error } = await supabase
+    .from('evidence')
+    .select(EVIDENCE_COLUMNS)
+    .eq('student_id', uid);
   if (error) fail('getEvidenceForStudent', error);
-  return (data ?? []) as Evidence[];
+  return (data ?? []) as unknown as Evidence[];
 }
 
+// Dicache 30s — dibaca oleh Radar Bakat, Profil Pelajar dan direktori.
 export async function getAllEvidence(): Promise<Evidence[]> {
-  const { data, error } = await supabase.from('evidence').select('*');
-  if (error) fail('getAllEvidence', error);
-  return (data ?? []) as Evidence[];
+  return cached('evidence:all', 30_000, async () => {
+    const { data, error } = await supabase.from('evidence').select(EVIDENCE_COLUMNS);
+    if (error) fail('getAllEvidence', error);
+    return (data ?? []) as unknown as Evidence[];
+  });
 }
 
 // Dispute (pelajar): bekukan sumbangan evidence. Rekod TIDAK dipadam —
@@ -33,6 +44,7 @@ export async function disputeEvidenceDoc(evidenceId: string): Promise<void> {
     .update({ status: 'disputed' })
     .eq('id', evidenceId);
   if (error) fail('disputeEvidenceDoc', error);
+  invalidate('evidence:');
 }
 
 // Jana & simpan evidence bagi SATU program yang layak (idempotent).
@@ -40,7 +52,7 @@ export async function disputeEvidenceDoc(evidenceId: string): Promise<void> {
 // bersifat tidak boleh diubah, dan status dispute/void yang ditetapkan mesti kekal.
 export async function syncEvidenceForApplication(
   app: Application,
-  report: Report | undefined
+  report: Report | undefined,
 ): Promise<number> {
   const derived = deriveEvidence(app, report);
   if (derived.length === 0) return 0;
@@ -50,7 +62,9 @@ export async function syncEvidenceForApplication(
     .upsert(derived, { onConflict: 'id', ignoreDuplicates: true })
     .select('id');
   if (error) fail('syncEvidenceForApplication', error);
-  return (data ?? []).length;
+  const created = (data ?? []).length;
+  if (created > 0) invalidate('evidence:');
+  return created;
 }
 
 // Backfill (admin): imbas SEMUA permohonan Lulus Sepenuhnya dengan laporan

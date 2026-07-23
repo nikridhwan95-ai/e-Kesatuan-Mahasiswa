@@ -1,19 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { Save, FileText, Upload, CheckCircle, XCircle } from 'lucide-react';
-import { getSetting, saveSetting, uploadFile } from '../../services/dataService';
+import { getSetting, saveSetting, uploadFile, getFileUrl } from '../../services/dataService';
+import { useNotification } from '../shared/ToastProvider';
 
 export default function LetterSettingsModule() {
+  const { showNotification } = useNotification();
   const [settings, setSettings] = useState({
     organizationName: 'Majlis Perwakilan Pelajar',
     refPrefix: 'UPM/KM/2026/',
     letterheadUrl: '',
-    letterBody: 'Sukacita dimaklumkan bahawa permohonan anda telah diluluskan.\n\nSila patuhi segala peraturan dan garis panduan yang telah ditetapkan oleh pihak universiti sepanjang program berlangsung.'
+    letterBody:
+      'Sukacita dimaklumkan bahawa permohonan anda telah diluluskan.\n\nSila patuhi segala peraturan dan garis panduan yang telah ditetapkan oleh pihak universiti sepanjang program berlangsung.',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  // Baldi peribadi: imej kepala surat dipaparkan melalui URL bertandatangan.
+  const [letterheadSrc, setLetterheadSrc] = useState('');
+
+  useEffect(() => {
+    if (!settings.letterheadUrl) {
+      setLetterheadSrc('');
+      return;
+    }
+    getFileUrl(settings.letterheadUrl)
+      .then(setLetterheadSrc)
+      .catch(() => setLetterheadSrc(''));
+  }, [settings.letterheadUrl]);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -24,11 +39,13 @@ export default function LetterSettingsModule() {
             organizationName: data.organizationName || 'Majlis Perwakilan Pelajar',
             refPrefix: data.refPrefix || 'UPM/KM/2026/',
             letterheadUrl: data.letterheadUrl || '',
-            letterBody: data.letterBody || 'Sukacita dimaklumkan bahawa permohonan anda telah diluluskan.\n\nSila patuhi segala peraturan dan garis panduan yang telah ditetapkan oleh pihak universiti sepanjang program berlangsung.'
+            letterBody:
+              data.letterBody ||
+              'Sukacita dimaklumkan bahawa permohonan anda telah diluluskan.\n\nSila patuhi segala peraturan dan garis panduan yang telah ditetapkan oleh pihak universiti sepanjang program berlangsung.',
           });
         }
       } catch (error) {
-        console.error("Error fetching letter settings:", error);
+        console.error('Error fetching letter settings:', error);
       }
     };
     fetchSettings();
@@ -39,7 +56,7 @@ export default function LetterSettingsModule() {
     setLoading(true);
     try {
       let finalLetterheadUrl = settings.letterheadUrl;
-      
+
       if (imageFile) {
         setUploadingImage(true);
         const path = `settings/letterhead_${Date.now()}_${imageFile.name}`;
@@ -49,7 +66,7 @@ export default function LetterSettingsModule() {
 
       const newSettings = {
         ...settings,
-        letterheadUrl: finalLetterheadUrl
+        letterheadUrl: finalLetterheadUrl,
       };
 
       await saveSetting('approvalLetter', newSettings);
@@ -58,7 +75,7 @@ export default function LetterSettingsModule() {
       setMessage('Tetapan surat kelulusan berjaya disimpan.');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      console.error("Error saving letter settings:", error);
+      console.error('Error saving letter settings:', error);
       setMessage('Gagal menyimpan tetapan.');
       setUploadingImage(false);
     } finally {
@@ -67,15 +84,15 @@ export default function LetterSettingsModule() {
   };
 
   const LetterPreview = () => (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
       onClick={() => setShowPreview(false)}
     >
-      <div 
+      <div
         className="bg-white rounded-none shadow-2xl max-w-[210mm] w-full p-12 my-8 relative"
         onClick={(e) => e.stopPropagation()}
       >
-        <button 
+        <button
           onClick={() => setShowPreview(false)}
           className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full transition-colors"
           title="Tutup Preview"
@@ -83,7 +100,7 @@ export default function LetterSettingsModule() {
           <XCircle className="w-8 h-8" />
         </button>
 
-        <button 
+        <button
           onClick={() => setShowPreview(false)}
           className="absolute -top-10 right-0 text-white hover:text-slate-300 flex items-center gap-2 font-semibold"
         >
@@ -91,16 +108,20 @@ export default function LetterSettingsModule() {
         </button>
 
         {/* Header */}
-        {settings.letterheadUrl ? (
+        {letterheadSrc ? (
           <div className="mb-8">
-            <img src={settings.letterheadUrl} alt="Letterhead" className="w-full object-contain" />
+            <img src={letterheadSrc} alt="Letterhead" className="w-full object-contain" />
           </div>
         ) : (
           <div className="border-b-2 border-slate-900 pb-6 mb-8 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-400">LOGO</div>
+              <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-400">
+                LOGO
+              </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900 uppercase tracking-wide">{settings.organizationName}</h1>
+                <h1 className="text-xl font-bold text-slate-900 uppercase tracking-wide">
+                  {settings.organizationName}
+                </h1>
                 <p className="text-sm text-slate-600 font-medium">Universiti Putra Malaysia</p>
               </div>
             </div>
@@ -115,8 +136,19 @@ export default function LetterSettingsModule() {
         <div className="space-y-6 text-slate-900 text-justify leading-relaxed font-serif text-sm">
           <div className="flex justify-between items-start">
             <div>
-              <p className="font-bold">Ruj. Kami: <span className="font-normal">{settings.refPrefix}APP12345</span></p>
-              <p className="font-bold">Tarikh: <span className="font-normal">{new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</span></p>
+              <p className="font-bold">
+                Ruj. Kami: <span className="font-normal">{settings.refPrefix}APP12345</span>
+              </p>
+              <p className="font-bold">
+                Tarikh:{' '}
+                <span className="font-normal">
+                  {new Date().toLocaleDateString('ms-MY', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </span>
+              </p>
             </div>
           </div>
 
@@ -132,7 +164,9 @@ export default function LetterSettingsModule() {
           </div>
 
           <div>
-            <h3 className="font-bold uppercase underline mb-4">KELULUSAN PERMOHONAN MENJALANKAN AKTIVITI DAN KELULUSAN KEWANGAN</h3>
+            <h3 className="font-bold uppercase underline mb-4">
+              KELULUSAN PERMOHONAN MENJALANKAN AKTIVITI DAN KELULUSAN KEWANGAN
+            </h3>
             <div className="whitespace-pre-wrap">{settings.letterBody}</div>
           </div>
 
@@ -145,7 +179,7 @@ export default function LetterSettingsModule() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-slate-100 flex justify-center">
-          <button 
+          <button
             onClick={() => setShowPreview(false)}
             className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg"
           >
@@ -164,19 +198,23 @@ export default function LetterSettingsModule() {
         </div>
         <div>
           <h3 className="text-lg font-bold text-slate-900 font-display">Tetapan Surat Kelulusan</h3>
-          <p className="text-sm text-slate-500">Urus maklumat letterhead, rujukan surat dan kandungan surat.</p>
+          <p className="text-sm text-slate-500">
+            Urus maklumat letterhead, rujukan surat dan kandungan surat.
+          </p>
         </div>
       </div>
 
       {message && (
-        <div className={`p-4 rounded-xl mb-6 text-sm font-medium ${message.includes('Gagal') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+        <div
+          className={`p-4 rounded-xl mb-6 text-sm font-medium ${message.includes('Gagal') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}
+        >
           {message}
         </div>
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
         <div className="flex justify-end">
-          <button 
+          <button
             type="button"
             onClick={() => setShowPreview(true)}
             className="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
@@ -186,24 +224,27 @@ export default function LetterSettingsModule() {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Muat Naik Letterhead (Header Surat)</label>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            Muat Naik Letterhead (Header Surat)
+          </label>
           <div className="text-xs text-slate-500 mb-3">
-            Sila muat naik imej dengan dimensi yang sesuai untuk A4 (contoh: 2480 x 350 piksel). Format yang disokong: JPG, PNG.
+            Sila muat naik imej dengan dimensi yang sesuai untuk A4 (contoh: 2480 x 350 piksel).
+            Format yang disokong: JPG, PNG.
           </div>
-          <div 
+          <div
             className={`border-2 border-dashed ${imageFile || settings.letterheadUrl ? 'border-emerald-300 bg-emerald-50' : 'border-slate-300 hover:bg-slate-50'} rounded-2xl p-6 text-center transition-colors cursor-pointer group relative`}
             onClick={() => document.getElementById('letterhead-upload')?.click()}
           >
-            <input 
+            <input
               id="letterhead-upload"
-              type="file" 
+              type="file"
               accept="image/jpeg, image/png"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
                   if (file.size > 2 * 1024 * 1024) {
-                    alert('Saiz fail melebihi 2MB');
+                    showNotification('Saiz fail melebihi 2MB.', 'error');
                     return;
                   }
                   setImageFile(file);
@@ -214,10 +255,18 @@ export default function LetterSettingsModule() {
               <div className="flex flex-col items-center">
                 {imageFile ? (
                   <CheckCircle className="w-8 h-8 text-emerald-500 mb-2" />
+                ) : letterheadSrc ? (
+                  <img
+                    src={letterheadSrc}
+                    alt="Letterhead"
+                    className="h-16 object-contain mb-3 border border-slate-200 bg-white p-1"
+                  />
                 ) : (
-                  <img src={settings.letterheadUrl} alt="Letterhead" className="h-16 object-contain mb-3 border border-slate-200 bg-white p-1" />
+                  <FileText className="w-8 h-8 text-slate-300 mb-2" />
                 )}
-                <p className="text-sm text-emerald-700 font-medium">{imageFile ? imageFile.name : 'Letterhead sedia ada'}</p>
+                <p className="text-sm text-emerald-700 font-medium">
+                  {imageFile ? imageFile.name : 'Letterhead sedia ada'}
+                </p>
                 <p className="text-xs text-emerald-500 mt-1">Klik untuk tukar fail</p>
               </div>
             ) : (
@@ -232,23 +281,25 @@ export default function LetterSettingsModule() {
 
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Nama Organisasi</label>
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={settings.organizationName}
-            onChange={(e) => setSettings({...settings, organizationName: e.target.value})}
-            className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow" 
+            onChange={(e) => setSettings({ ...settings, organizationName: e.target.value })}
+            className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             placeholder="Contoh: Majlis Perwakilan Pelajar"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Awalan No. Rujukan Surat</label>
-          <input 
-            type="text" 
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            Awalan No. Rujukan Surat
+          </label>
+          <input
+            type="text"
             value={settings.refPrefix}
-            onChange={(e) => setSettings({...settings, refPrefix: e.target.value})}
-            className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow" 
+            onChange={(e) => setSettings({ ...settings, refPrefix: e.target.value })}
+            className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             placeholder="Contoh: UPM/KM/2026/"
             required
           />
@@ -258,22 +309,24 @@ export default function LetterSettingsModule() {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Kandungan Surat (Body)</label>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            Kandungan Surat (Body)
+          </label>
           <div className="text-xs text-slate-500 mb-2">
             Teks ini akan dipaparkan di bahagian utama surat kelulusan.
           </div>
-          <textarea 
+          <textarea
             value={settings.letterBody}
-            onChange={(e) => setSettings({...settings, letterBody: e.target.value})}
-            className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow" 
+            onChange={(e) => setSettings({ ...settings, letterBody: e.target.value })}
+            className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             rows={6}
             required
           />
         </div>
-        
+
         <div className="flex justify-end pt-4">
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading || uploadingImage}
             className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20 disabled:opacity-50"
           >

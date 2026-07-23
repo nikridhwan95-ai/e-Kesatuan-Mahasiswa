@@ -7,18 +7,23 @@ import {
   CompetencyCode,
   CompetencyScore,
   Evidence,
+  nowISO,
   recalculateStudent,
 } from './domain';
 
 // ── Skor keseluruhan & jalur prestasi ───────────────────────────────────────
 
-// Skor Bakat Keseluruhan = purata 3 skor kompetensi tertinggi (1 t.p.).
+// Skor Bakat Keseluruhan = purata skor BUKAN SIFAR dalam kalangan 3 skor
+// kompetensi tertinggi (1 t.p.). Kompetensi kosong TIDAK mencairkan purata:
+// pelajar dengan satu kekuatan 90 mendapat 90, bukan 30 — profil sempit
+// tetapi cemerlang tidak dihukum kerana keluasan.
 export function overallScore(scores: CompetencyScore[]): number {
   const top = [...scores]
     .map((s) => s.score)
     .sort((a, b) => b - a)
-    .slice(0, 3);
-  if (top.length === 0 || top[0] === 0) return 0;
+    .slice(0, 3)
+    .filter((s) => s > 0);
+  if (top.length === 0) return 0;
   return Math.round((top.reduce((a, b) => a + b, 0) / top.length) * 10) / 10;
 }
 
@@ -32,10 +37,22 @@ export function bandOf(score: number): Band {
 }
 
 export const BAND_META: Record<Band, { label: string; hex: string; chip: string }> = {
-  cemerlang: { label: 'Cemerlang (90+)', hex: '#059669', chip: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  cemerlang: {
+    label: 'Cemerlang (90+)',
+    hex: '#059669',
+    chip: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  },
   baik: { label: 'Baik (70–89)', hex: '#2563eb', chip: 'text-blue-700 bg-blue-50 border-blue-200' },
-  berkembang: { label: 'Berkembang (50–69)', hex: '#d97706', chip: 'text-amber-700 bg-amber-50 border-amber-200' },
-  perlu: { label: 'Perlu Peningkatan (<50)', hex: '#dc2626', chip: 'text-red-700 bg-red-50 border-red-200' },
+  berkembang: {
+    label: 'Berkembang (50–69)',
+    hex: '#d97706',
+    chip: 'text-amber-700 bg-amber-50 border-amber-200',
+  },
+  perlu: {
+    label: 'Perlu Peningkatan (<50)',
+    hex: '#dc2626',
+    chip: 'text-red-700 bg-red-50 border-red-200',
+  },
 };
 
 export const HIGH_POTENTIAL_THRESHOLD = 70;
@@ -68,7 +85,13 @@ export interface CohortStats {
   competencyStats: CompetencyStat[]; // tertib bilangan pelajar menurun
 }
 
-export function computeCohortStats(users: User[], evidence: Evidence[]): CohortStats {
+// `asOf` disuntik supaya laluan tulen ini deterministik sepenuhnya (Faktor
+// Masa dikira relatif kepada satu cap masa) — lalai masa nyata untuk UI.
+export function computeCohortStats(
+  users: User[],
+  evidence: Evidence[],
+  asOf: string = nowISO(),
+): CohortStats {
   const byStudent = new Map<string, Evidence[]>();
   for (const e of evidence) {
     const arr = byStudent.get(e.student_id) ?? [];
@@ -81,7 +104,7 @@ export function computeCohortStats(users: User[], evidence: Evidence[]): CohortS
   const rows: StudentTalentRow[] = students
     .map((user) => {
       const ev = byStudent.get(user.uid) ?? [];
-      const scores = recalculateStudent(user.uid, COMPETENCY_CODES, ev);
+      const scores = recalculateStudent(user.uid, COMPETENCY_CODES, ev, asOf);
       const strengths = scores
         .filter((s) => s.score > 0)
         .sort((a, b) => b.score - a.score)
@@ -124,7 +147,8 @@ export function computeCohortStats(users: User[], evidence: Evidence[]): CohortS
     avgOverall:
       withEvidence.length === 0
         ? 0
-        : Math.round((withEvidence.reduce((a, r) => a + r.overall, 0) / withEvidence.length) * 10) / 10,
+        : Math.round((withEvidence.reduce((a, r) => a + r.overall, 0) / withEvidence.length) * 10) /
+          10,
     withEvidenceCount: withEvidence.length,
     withoutEvidenceCount: rows.length - withEvidence.length,
     distribution,
@@ -184,11 +208,14 @@ export function computeSorotan(stats: CohortStats): Sorotan[] {
 }
 
 // Ringkasan bakat individu (berasaskan peraturan, bukan AI).
-export function talentSummary(name: string | undefined, row: {
-  strengths: CompetencyScore[];
-  approvedCount: number;
-  programmeCount: number;
-}): string {
+export function talentSummary(
+  name: string | undefined,
+  row: {
+    strengths: CompetencyScore[];
+    approvedCount: number;
+    programmeCount: number;
+  },
+): string {
   if (row.strengths.length === 0) return '';
   const who = name ?? 'Pelajar ini';
   const names = row.strengths.slice(0, 2).map((s) => nameOf(s.competency_id));

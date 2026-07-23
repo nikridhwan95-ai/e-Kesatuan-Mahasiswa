@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Building2, Home, Loader2, ChevronRight } from 'lucide-react';
-import { 
-  getFaculties, addFaculty, deleteFaculty,
-  getColleges, addCollege, deleteCollege 
+import { Plus, Trash2, Building2, Home, Loader2 } from 'lucide-react';
+import {
+  getFaculties,
+  addFaculty,
+  deleteFaculty,
+  getColleges,
+  addCollege,
+  deleteCollege,
 } from '../../services/dataService';
+import { useNotification } from '../shared/ToastProvider';
+import { useConfirm } from '../shared/ConfirmDialog';
 
 type SettingType = 'faculty' | 'college';
 
@@ -13,6 +19,8 @@ export default function OrganizationSettings() {
   const [newItem, setNewItem] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const { showNotification } = useNotification();
+  const confirm = useConfirm();
 
   useEffect(() => {
     fetchItems();
@@ -45,7 +53,7 @@ export default function OrganizationSettings() {
       await fetchItems();
     } catch (error) {
       console.error(`Error adding ${activeTab}:`, error);
-      alert(`Gagal menambah ${activeTab === 'faculty' ? 'fakulti' : 'kolej'}.`);
+      showNotification(`Gagal menambah ${activeTab === 'faculty' ? 'fakulti' : 'kolej'}.`, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -53,7 +61,13 @@ export default function OrganizationSettings() {
 
   const handleDeleteItem = async (item: string) => {
     const label = activeTab === 'faculty' ? 'fakulti' : 'kolej';
-    if (!confirm(`Adakah anda pasti mahu membuang ${label} "${item}"?`)) return;
+    const ok = await confirm({
+      title: `Buang ${label === 'fakulti' ? 'Fakulti' : 'Kolej'}`,
+      message: `Adakah anda pasti mahu membuang ${label} "${item}"?`,
+      confirmLabel: 'Buang',
+      tone: 'danger',
+    });
+    if (ok !== true) return;
 
     try {
       if (activeTab === 'faculty') {
@@ -64,7 +78,7 @@ export default function OrganizationSettings() {
       await fetchItems();
     } catch (error) {
       console.error(`Error deleting ${activeTab}:`, error);
-      alert(`Gagal membuang ${label}.`);
+      showNotification(`Gagal membuang ${label}.`, 'error');
     }
   };
 
@@ -76,18 +90,20 @@ export default function OrganizationSettings() {
             <Building2 className="w-5 h-5 text-blue-600" />
             Pengurusan Maklumat Organisasi
           </h3>
-          <p className="text-sm text-slate-600">Urus senarai fakulti/akademi dan kolej kediaman untuk profil pelajar.</p>
+          <p className="text-sm text-slate-600">
+            Urus senarai fakulti/akademi dan kolej kediaman untuk profil pelajar.
+          </p>
         </div>
-        
+
         <div className="flex bg-slate-100 p-1 rounded-xl">
-          <button 
+          <button
             onClick={() => setActiveTab('faculty')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'faculty' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
           >
             <Building2 className="w-4 h-4" />
             Fakulti / Akademi
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('college')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'college' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
           >
@@ -99,16 +115,16 @@ export default function OrganizationSettings() {
 
       <form onSubmit={handleAddItem} className="flex gap-4 mb-8">
         <div className="flex-1">
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={newItem}
             onChange={(e) => setNewItem(e.target.value)}
-            placeholder={`Nama ${activeTab === 'faculty' ? 'Fakulti/Akademi' : 'Kolej Kediaman'} Baru`} 
+            placeholder={`Nama ${activeTab === 'faculty' ? 'Fakulti/Akademi' : 'Kolej Kediaman'} Baru`}
             className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             disabled={submitting}
           />
         </div>
-        <button 
+        <button
           type="submit"
           disabled={submitting || !newItem.trim()}
           className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
@@ -125,14 +141,21 @@ export default function OrganizationSettings() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map((item) => (
-            <div key={item} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 group hover:border-blue-200 transition-colors">
+            <div
+              key={item}
+              className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 group hover:border-blue-200 transition-colors"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-100 text-slate-400 group-hover:text-blue-500 transition-colors">
-                  {activeTab === 'faculty' ? <Building2 className="w-4 h-4" /> : <Home className="w-4 h-4" />}
+                  {activeTab === 'faculty' ? (
+                    <Building2 className="w-4 h-4" />
+                  ) : (
+                    <Home className="w-4 h-4" />
+                  )}
                 </div>
                 <span className="font-medium text-slate-700 text-sm">{item}</span>
               </div>
-              <button 
+              <button
                 onClick={() => handleDeleteItem(item)}
                 className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                 title={`Buang ${activeTab === 'faculty' ? 'Fakulti' : 'Kolej'}`}

@@ -69,10 +69,22 @@ export const TEMPLATE_EXAMPLE_ROW = [
 ];
 
 export const VALID_JAWATAN = ['Pengarah', 'Setiausaha'];
-export const VALID_PERINGKAT = ['Antarabangsa', 'Kebangsaan', 'Negeri', 'Universiti', 'Kolej atau Fakulti'];
+export const VALID_PERINGKAT = [
+  'Antarabangsa',
+  'Kebangsaan',
+  'Negeri',
+  'Universiti',
+  'Kolej atau Fakulti',
+];
 export const VALID_KATEGORI = [
-  'Kesukarelawanan', 'Kepimpinan', 'Kebudayaan', 'Sukan', 'Keusahawanan',
-  'Akademik & Intelektual', 'Kerohanian', 'Kelestarian & Alam Sekitar',
+  'Kesukarelawanan',
+  'Kepimpinan',
+  'Kebudayaan',
+  'Sukan',
+  'Keusahawanan',
+  'Akademik & Intelektual',
+  'Kerohanian',
+  'Kelestarian & Alam Sekitar',
 ];
 export const VALID_SOFTSKILLS = [
   'Kemahiran Berkomunikasi',
@@ -160,6 +172,19 @@ function num(v: unknown): number {
 }
 
 // Normalisasi tarikh: objek Date, nombor siri Excel, 'dd/mm/yyyy', 'yyyy-mm-dd'.
+// Sahkan komponen tarikh melalui ulang-alik Date.UTC — menolak bulan 13,
+// hari 32, 31 Februari dan seumpamanya (tanpa ini "25/13/2026" lepas senyap
+// sebagai "2026-13-25").
+function validYmd(y: number, mo: number, d: number): string | null {
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  const ok = dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+  return ok ? `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}` : null;
+}
+
+// Format rentetan yang diterima: ISO tttt-bb-hh, atau hh/bb/tttt (mengikut
+// templat import "hh/bb/tttt" — hari dahulu; nilai MM/DD gaya AS TIDAK
+// ditafsir semula secara automatik: jika segmen pertama > 12 ia semestinya
+// hari, selain itu tafsiran hh/bb sentiasa digunakan).
 export function normalizeDate(v: unknown): string | null {
   if (v === null || v === undefined || v === '') return null;
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
@@ -173,9 +198,9 @@ export function normalizeDate(v: unknown): string | null {
   }
   const s = str(v);
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  if (m) return validYmd(Number(m[1]), Number(m[2]), Number(m[3]));
   m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/);
-  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  if (m) return validYmd(Number(m[3]), Number(m[2]), Number(m[1]));
   return null;
 }
 
@@ -335,7 +360,11 @@ export function parseStudentRows(sheetRows: Record<string, unknown>[]): {
     if (!name || !matric) return;
 
     if (seenMatric.has(matric)) {
-      issues.push({ row: rowNo, severity: 'amaran', message: `No. Matrik ${matric} berulang dalam fail — baris ini dilangkau` });
+      issues.push({
+        row: rowNo,
+        severity: 'amaran',
+        message: `No. Matrik ${matric} berulang dalam fail — baris ini dilangkau`,
+      });
       return;
     }
     seenMatric.add(matric);

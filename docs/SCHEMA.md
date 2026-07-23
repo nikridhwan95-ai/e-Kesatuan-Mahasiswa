@@ -1,148 +1,133 @@
-# Portal Aktiviti Pelajar UPM
+# Portal Aktiviti Pelajar UPM — Seni Bina & Skema
 
 Portal bersepadu yang menggabungkan dua modul yang saling berkait:
 
 1. **e-Kesatuan Mahasiswa** — pengurusan permohonan aktiviti, aliran kelulusan
    (Unit Semakan → Pembentangan → YDP → TNC HEPA) dan laporan pascaprogram.
-2. **Modul Bakat (Talent Hub)** — kecerdasan bakat pelajar berasaskan prinsip
+2. **Modul Bakat (Radar Bakat)** — kecerdasan bakat pelajar berasaskan prinsip
    *evidence-first* (SDD TalentOS v2.0): skor kompetensi TIDAK PERNAH disimpan
-   sebagai kebenaran (IRON RULE §4.4); setiap skor diterbitkan semula oleh enjin
-   deterministik (`src/bakat/domain/scoring.ts`) daripada rekod bukti yang
-   tidak boleh diubah.
+   (IRON RULE §4.4); setiap skor diterbitkan semula oleh enjin deterministik
+   (`src/bakat/domain/scoring.ts`) daripada rekod bukti yang tidak boleh diubah.
 
-**Titik integrasi:** apabila satu permohonan mencapai status `Lulus Sepenuhnya`
-DAN laporan pascaprogramnya `Disahkan` oleh Unit Pelaporan, sistem menjana
-rekod bukti bakat secara automatik (`src/bakat/derive.ts`):
+Backend: **Supabase** (Auth + Postgres + Storage + Edge Functions). Sumber
+kebenaran skema ialah **`supabase/schema.sql`** — idempotent; pemilik
+menjalankannya semula dalam SQL Editor selepas setiap perubahan skema.
 
-- Jawatan pemohon (Pengarah/Setiausaha) → evidence `committee_role` untuk
-  Kepimpinan (LEA), Pengurusan Projek (PRJ) dan Literasi Kewangan (FIN, jika
-  berbajet), dengan pendarab peranan (chairperson ×1.8 / secretary ×1.45).
-- Peringkat penganjuran → pendarab peringkat (Antarabangsa ×1.8, Kebangsaan &
-  Negeri ×1.5, Universiti ×1.2, Kolej/Fakulti ×1.0).
-- Kategori program (8 Teras) → evidence `achievement` kompetensi teras
-  (cth Sukan → SPO, Kesukarelawanan → VOL).
-- Kemahiran insaniah yang dideklarasikan → evidence `achievement` kompetensi
-  berkaitan (cth Kemahiran Berkomunikasi → COM).
+## 1. Susunan kod
 
-ID evidence adalah deterministik (`appId__sourceType__competency`) supaya
-penjanaan semula bersifat idempotent. Pelajar boleh **mempertikai** evidence
-(status → `disputed`) dan skor dikira semula serta-merta tanpa evidence itu.
-Semakan sifat enjin: `npm run check:bakat`.
+```
+src/
+  App.tsx                      # shell: auth, sidebar 3 kumpulan, penghalaan tab (React.lazy)
+  supabase.ts                  # klien + usernameToEmail + AppUser
+  types.ts                     # SATU-SATUNYA fail jenis e-Kesatuan (status BM)
+  constants.ts                 # SEMESTER_ALLOCATION + palet kategori (CVD-safe)
+  services/
+    dataService.ts             # SEMUA akses DB e-Kesatuan (unjuran lajur eksplisit,
+                               # senarai putih medan, uploadFile/getFileUrl bertandatangan)
+    importParser.ts            # parser Excel TULEN (diuji check:bakat)
+    importPlan.ts              # perancang import TULEN (penduaan, padanan, ID)
+    importService.ts           # pelaksana import + reconcileImportOrphans
+    cache.ts                   # cache TTL ringan (users/tetapan/bukti)
+  bakat/
+    domain/                    # enjin skor TULEN — satu-satunya penghasil CompetencyScore
+    derive.ts                  # JAMBATAN e-Kesatuan → bukti (fungsi total, tiada lempar)
+    evidenceService.ts         # jadual 'evidence' (sync idempotent, dispute)
+    insights.ts                # skor keseluruhan, jalur, statistik kohort (asOf boleh disuntik)
+  components/
+    shared/                    # StatusBadge, FileLink, ToastProvider, ConfirmDialog, ErrorBoundary
+    application/               # ApplicationModule (orkestrator) + List/Detail/Form/Timeline
+    ... (review, presentation, report, archive, dashboard, admin, bakat, import, settings)
+supabase/
+  schema.sql                   # SUMBER KEBENARAN: jadual + RLS + trigger + FK + storage + benih
+  functions/jana-analisis/     # Fungsi Edge Gemini (kunci API di sisi pelayan)
+scripts/check-bakat.ts         # 87 semakan sifat
+```
 
-## 1. Struktur Folder Projek
+## 2. Model keselamatan
 
-\`\`\`
-/src
-  /components
-    /auth               # Komponen log masuk & pendaftaran
-    /dashboard          # Papan pemuka untuk pelbagai peranan
-    /application        # Borang permohonan & muat naik kertas kerja
-    /approval           # Aliran kelulusan (ApprovalWorkflow.tsx)
-    /report             # Modul pelaporan pascaprogram
-    /bakat              # UI Modul Bakat (TalentRadar, BakatProfile, TalentSearchModule)
-    /ui                 # Komponen UI guna semula (Butang, Modal, Kad)
-  /bakat
-    /domain             # Enjin bakat TULEN (types, taxonomy, multipliers, scoring, evidence)
-    derive.ts           # Jambatan: Application+Report e-Kesatuan → Evidence[]
-    evidenceService.ts  # Servis Firestore koleksi 'evidence' (sync idempotent, dispute)
-  /services
-    /firebase           # Konfigurasi & fungsi Firestore/Storage
-    /ai                 # Integrasi API Google Gemini (summarizer.ts)
-  /types                # Definisi TypeScript (index.ts)
-  /utils                # Fungsi utiliti (format tarikh, penjanaan PDF)
-  /hooks                # Custom React Hooks (useAuth, useApplication)
-  /context              # React Context (AuthContext)
-\`\`\`
+- **Auth**: SATU akaun portal kongsi — nama pengguna `ekmupm` dipetakan ke
+  e-mel sintetik `ekmupm@portal-bhep.upm.edu.my`. Pendaftaran awam DIMATIKAN
+  di Dashboard. Peranan datang HANYA daripada `users.role` (dibenih oleh
+  skema untuk akaun portal) — tiada e-mel dikod keras dalam `is_admin()`.
+- **RLS** pada semua jadual (`to authenticated`); kunci anon tidak boleh
+  menyentuh apa-apa jadual mahupun Storage.
+- **Trigger integriti** (pertahanan dalam kedalaman, bersedia untuk akaun
+  pelajar individu): pemohon tidak boleh mengubah medan terkawal
+  (`approvedAmount`, `reviewerComment`, medan pembentangan) atau melompat
+  status; polisi INSERT menyekat kelulusan/pengesahan kendiri; bukti tidak
+  boleh diubah selain `status` (+ `superseded_by` oleh pengurusan).
+- **Kunci asing**: `reports.applicationId → applications` (CASCADE),
+  `applications.applicantId → users` (RESTRICT), `evidence.student_id →
+  users` (RESTRICT). TIADA FK pada `evidence.source_id` — rujukan polimorfik
+  untuk bukti manual/pengesahan masa hadapan.
+- **Storage**: baldi `uploads` PERIBADI; muat naik terhad kepada prefiks
+  `applications/`, `reports/`, `settings/`; objek tidak boleh ditulis ganti;
+  capaian melalui URL bertandatangan 1 jam (`getFileUrl`, menyokong URL awam
+  lama dalam rekod sedia ada).
+- **AI**: Fungsi Edge `jana-analisis` memegang `GEMINI_API_KEY` sebagai
+  rahsia, mengesahkan JWT + peranan pengurusan, dan membina prompt di sisi
+  pelayan — kunci tidak pernah sampai ke pelayar.
 
-## 2. Skema Pangkalan Data (Supabase / Postgres)
+## 3. Jadual (Postgres)
 
-Sistem ini menggunakan **Supabase** (Postgres + Auth + Storage). Sumber
-kebenaran skema ialah **\`supabase/schema.sql\`** — jalankan sekali dalam
-Supabase Dashboard → SQL Editor. Nama lajur camelCase (dipetik) dipilih
-supaya sama dengan jenis TypeScript aplikasi, jadi lapisan servis
-(\`src/services/dataService.ts\`) tidak memerlukan pemetaan medan. Kawalan
-akses dikuatkuasakan oleh polisi RLS dalam fail skema yang sama; muat naik
-fail menggunakan baldi Storage \`uploads\`.
+Lajur e-Kesatuan menggunakan camelCase dipetik supaya SAMA dengan jenis
+TypeScript (tiada lapisan pemetaan); jadual `evidence` menggunakan
+snake_case selaras `src/bakat/domain/types.ts`. Nilai status/peranan
+dikawal kekangan CHECK yang sepadan dengan union literal `src/types.ts`.
 
-Senarai "koleksi" di bawah kini merujuk kepada JADUAL Postgres dengan medan
-yang sama (jadual \`presentationSessions\` dinamakan \`presentation_sessions\`;
-\`settings\` ialah jadual baris fleksibel \`id → data jsonb\`).
+| Jadual | Nota |
+|---|---|
+| `users` | uid PK (auth uid atau sintetik `M-<matrik>` untuk pelajar import); `role` CHECK 8 peranan; indeks unik `lower(email)` + `matricNumber` |
+| `applications` | id `KM.<sesi>.<seq>`; status CHECK 11 nilai BM; medan penuh borang termasuk `startDate`/`endDate` (julat), medan pembentangan; lajur legasi `"aiSummary"` kekal dalam DB tetapi tidak dibaca aplikasi |
+| `reports` | laporan pascaprogram; status `Tertunggak/Dihantar/Disahkan/Perlu Pembetulan`; FK CASCADE ke applications |
+| `presentation_sessions` | sesi semakan; status `Open/Closed` |
+| `settings` | baris fleksibel `id → data jsonb` (kategori, fakulti, kolej, surat) |
+| `evidence` | IRON RULE — hanya bukti disimpan, skor tidak. ID deterministik `{appId}__{sourceType}__{competency}`; status `pending/approved/disputed/void` (hanya `approved` menyumbang) |
 
-### Koleksi: \`users\`
-Menyimpan profil pengguna dan kawalan akses berasaskan peranan (RBAC).
-- \`uid\` (String) - ID unik dari Firebase Auth
-- \`name\` (String) - Nama penuh
-- \`email\` (String) - E-mel universiti
-- \`role\` (String) - \`student\` | \`reviewer\` | \`secretariat\` | \`ydp\` | \`tnc\`
-- \`faculty\` (String, Pilihan)
-- \`association\` (String, Pilihan) - Persatuan pelajar
-- \`position\` (String, Pilihan) - Jawatan dalam persatuan
-- \`createdAt\` (Timestamp)
+## 4. Titik integrasi Modul Bakat
 
-### Koleksi: \`applications\`
-Menyimpan maklumat utama permohonan program.
-- \`id\` (String) - ID Permohonan
-- \`studentId\` (String) - Rujukan ke \`users.uid\`
-- \`title\` (String) - Tajuk program
-- \`date\` (Timestamp) - Tarikh cadangan program
-- \`budget\` (Number) - Jumlah bajet dimohon
-- \`objective\` (String) - Objektif program
-- \`status\` (String) - Status semasa (Rujuk \`ApplicationStatus\` di \`types/index.ts\`)
-- \`paperUrl\` (String) - Pautan ke fail PDF terkini di Firebase Storage
-- \`aiSummary\` (Map, Pilihan) - Ringkasan janaan AI
-  - \`executiveSummary\` (String)
-  - \`budgetAnalysis\` (String)
-  - \`impact\` (String)
-- \`presentationDate\` (Timestamp, Pilihan)
-- \`createdAt\` (Timestamp)
-- \`updatedAt\` (Timestamp)
+Apabila permohonan mencapai `Lulus Sepenuhnya` DAN laporannya `Disahkan`,
+bukti bakat dijana secara automatik (`src/bakat/derive.ts` — fungsi tulen):
 
-### Koleksi: \`application_versions\` (Sub-koleksi atau Koleksi Berasingan)
-Menguruskan kawalan versi kertas kerja (Version Control).
-- \`id\` (String)
-- \`applicationId\` (String) - Rujukan ke \`applications.id\`
-- \`version\` (Number) - Nombor versi (1, 2, 3...)
-- \`paperUrl\` (String) - Pautan fail PDF versi ini
-- \`uploadedAt\` (Timestamp)
-- \`comments\` (String, Pilihan) - Nota pembetulan dari pelajar
+- Jawatan pemohon (Pengarah/Setiausaha) → bukti `committee_role` untuk
+  LEA, PRJ dan FIN (jika berbajet), pendarab chairperson ×1.8 / secretary ×1.45.
+- Peringkat penganjuran → pendarab peringkat (Antarabangsa ×1.8, Kebangsaan
+  & Negeri ×1.5, Universiti ×1.2, Kolej/Fakulti ×1.0).
+- Kategori program (8 Teras) → bukti `achievement` kompetensi teras.
+- Kemahiran insaniah → bukti `achievement` kompetensi berkaitan.
 
-### Koleksi: \`reviews\`
-Menyimpan sejarah semakan dan komen dari pelbagai pihak (Penyemak, Urus Setia, YDP, TNC).
-- \`id\` (String)
-- \`applicationId\` (String) - Rujukan ke \`applications.id\`
-- \`reviewerId\` (String) - Rujukan ke \`users.uid\`
-- \`comments\` (String) - Ulasan atau sebab penolakan/pembetulan
-- \`status\` (String) - Keputusan semakan (\`APPROVED\`, \`REJECTED\`, \`REVISION_REQUIRED\`)
-- \`createdAt\` (Timestamp)
+Penjanaan idempotent (ID deterministik + ON CONFLICT DO NOTHING). Pelajar
+boleh mempertikai bukti (status → `disputed`) dan skor dikira semula tanpa
+bukti itu.
 
-### Koleksi: \`reports\`
-Menyimpan laporan pascaprogram.
-- \`id\` (String)
-- \`applicationId\` (String) - Rujukan ke \`applications.id\`
-- \`studentId\` (String) - Rujukan ke \`users.uid\`
-- \`reportUrl\` (String) - Pautan fail laporan PDF
-- \`receiptsUrl\` (Array of Strings) - Pautan gambar/PDF resit
-- \`photosUrl\` (Array of Strings) - Pautan gambar aktiviti
-- \`aiSentiment\` (String, Pilihan) - Analisis sentimen AI
-- \`status\` (String) - \`PENDING\` | \`APPROVED\` | \`REJECTED\`
-- \`createdAt\` (Timestamp)
+**Formula**: skor = min(100, Σ points × peranan × peringkat × kehadiran ×
+Faktor Masa), dengan skala-turun berkadar pada cap per-jenis-sumber. `points`
+diklamp 0–10; tarikh/nilai tidak sah → faktor neutral 1. **Skor Bakat
+Keseluruhan = purata skor BUKAN SIFAR dalam kalangan 3 kompetensi tertinggi**
+(profil sempit tidak dicairkan). Jalur: Cemerlang ≥90 / Baik 70–89 /
+Berkembang 50–69 / Perlu Peningkatan <50; Potensi Tinggi ≥70.
 
-### Koleksi: \`evidence\` (Modul Bakat)
-Rekod evidence kompetensi yang TIDAK BOLEH DIUBAH — sumber tunggal kebenaran
-untuk skor bakat. Skor TIDAK disimpan di mana-mana; ia dikira semula oleh
-enjin (\`src/bakat/domain/scoring.ts\`) setiap kali dipaparkan.
+**Liputan kompetensi**: derivation e-Kesatuan mampu mengisi
+{LEA, PRJ, FIN, VOL, ART, SPO, ENT, RES, COM, CRT, NET, DIG}. Empat
+kompetensi — **INN, TEC, GLO, NEG** — tiada laluan derivation dan hanya akan
+terisi melalui bukti manual/pengesahan (`manual_endorsement`) pada masa
+hadapan; paksi radar mereka kekal 0 sehingga itu.
 
-- \`id\` (String) - Deterministik: \`{applicationId}__{sourceType}__{competencyCode}\`
-- \`student_id\` (String) - Rujukan ke \`users.uid\`
-- \`source_type\` (String) - \`participation\` | \`committee_role\` | \`competition_result\` | \`certificate\` | \`achievement\` | \`manual_endorsement\`
-- \`source_id\` (String) - Rujukan polimorfik (bagi evidence terbitan: \`applications.id\`)
-- \`competency_id\` (String) - Kod kompetensi 16 teras (LEA, COM, INN, TEC, ENT, SPO, ART, RES, VOL, CRT, DIG, GLO, PRJ, FIN, NEG, NET)
-- \`points\` (Number) - 0–10 mata mentah sebelum pendarab/decay/cap
-- \`weight_factors\` (Map) - \`role\` (RoleType), \`level\` (ProgrammeLevel), \`attendance_pct\` (0–100)
-- \`ai_confidence\` (Number | null) - Keyakinan pemetaan AI; null jika bukan AI
-- \`status\` (String) - \`pending\` | \`approved\` | \`disputed\` | \`void\` (hanya \`approved\` menyumbang kepada skor)
-- \`approved_by\` (String | null) - \`e-kesatuan:unit_pelaporan\` bagi evidence terbitan automatik
-- \`approved_at\` (Timestamp | null)
-- \`superseded_by\` (String | null) - ID rekod ganti apabila void
-- \`narrative\` (String) - Satu baris naratif untuk drill-down
-- \`event_date\` (Timestamp) - Bila fakta berlaku (asas recency decay)
+## 5. Import Excel
+
+Dua mod (Tetapan Sistem → Import Data): **Program Lepas** (baris → pelajar +
+permohonan Lulus Sepenuhnya + laporan Disahkan + bukti) dan **Butiran
+Pelajar** (padanan matrik). Keputusan penduaan/padanan/ID dibuat oleh
+perancang tulen `importPlan.ts` (diuji). Kegagalan separa tidak meninggalkan
+yatim kekal: laporan gagal → permohonan dipadam semula; baki lama boleh
+dipulihkan dengan butang **Pulihkan Import** (`reconcileImportOrphans`,
+mengenal pasti baris import melalui penanda `IMPORT_MARKER`).
+
+## 6. Perkara tertangguh (sengaja)
+
+| Item | Sebab |
+|---|---|
+| Lajur tarikh `text` → `timestamptz` | Cast in-place atas format campuran tidak dapat disahkan tanpa akses DB; dikurangkan oleh pengesahan huraian (parseTarikh, normalizeDate) |
+| Penomboran pelayan | Unjuran lajur telah memotong muatan; bar penomboran palsu dibuang |
+| FK `evidence.source_id` | Menyekat bukti manual masa hadapan (rujukan bukan-permohonan) |
+| Akaun log masuk pelajar individu | Keputusan pemilik; reka bentuk RLS/trigger sedia menampungnya |

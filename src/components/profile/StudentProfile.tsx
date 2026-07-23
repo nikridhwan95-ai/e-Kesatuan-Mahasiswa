@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, Mail, Building, BookOpen, Award, Camera, Save, RefreshCw } from 'lucide-react';
-import { getUserProfile, updateUserProfile, getFaculties, getColleges } from '../../services/dataService';
+import { User as UserIcon, Mail, Building, BookOpen, Award, Save, RefreshCw } from 'lucide-react';
+import {
+  getUserProfile,
+  updateUserProfile,
+  getFaculties,
+  getColleges,
+} from '../../services/dataService';
 import { getCurrentAppUser, AppUser } from '../../supabase';
 import { User } from '../../types';
+import { useNotification } from '../shared/ToastProvider';
 
 interface StudentProfileProps {
   userId: string;
@@ -11,20 +17,25 @@ interface StudentProfileProps {
 export default function StudentProfile({ userId }: StudentProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<User | null>(null);
   const [faculties, setFaculties] = useState<string[]>([]);
   const [colleges, setColleges] = useState<string[]>([]);
   const [authUser, setAuthUser] = useState<AppUser | null>(null);
+  const [fetchError, setFetchError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const { showNotification } = useNotification();
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setFetchError(false);
       try {
         const [userProfile, facultyList, collegeList, currentAuthUser] = await Promise.all([
           getUserProfile(userId),
           getFaculties(),
           getColleges(),
-          getCurrentAppUser()
+          getCurrentAppUser(),
         ]);
 
         setFaculties(facultyList);
@@ -35,15 +46,15 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
 
         // If no profile exists, initialize a new one from Auth
         if (!currentProfile && currentAuthUser) {
-           currentProfile = {
-             uid: currentAuthUser.uid,
-             email: currentAuthUser.email || '',
-             name: currentAuthUser.displayName || '',
-             displayName: '',
-             photoURL: '',
-             role: 'student', // Default role
-             createdAt: new Date().toISOString()
-           };
+          currentProfile = {
+            uid: currentAuthUser.uid,
+            email: currentAuthUser.email || '',
+            name: currentAuthUser.displayName || '',
+            displayName: '',
+            photoURL: '',
+            role: 'student', // Default role
+            createdAt: new Date().toISOString(),
+          };
         }
 
         // Auto-fill missing details from Auth
@@ -59,25 +70,30 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
           if (!newDisplayName && currentAuthUser.email) {
             const emailName = currentAuthUser.email.split('@')[0];
             // Remove numbers and replace dots/underscores with spaces
-            newDisplayName = emailName.replace(/[0-9]/g, '').replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).trim();
+            newDisplayName = emailName
+              .replace(/[0-9]/g, '')
+              .replace(/[._]/g, ' ')
+              .replace(/\b\w/g, (l) => l.toUpperCase())
+              .trim();
           }
 
           currentProfile = {
             ...currentProfile,
             displayName: newDisplayName,
-            photoURL: newPhotoURL
+            photoURL: newPhotoURL,
           };
         }
 
         setProfile(currentProfile);
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error('Error fetching profile:', error);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [userId]);
+  }, [userId, reloadKey]);
 
   const handleExtractFromEmail = () => {
     if (authUser && profile) {
@@ -87,30 +103,37 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
       if (!newDisplayName && authUser.email) {
         const emailName = authUser.email.split('@')[0];
         // Remove numbers and replace dots/underscores with spaces
-        newDisplayName = emailName.replace(/[0-9]/g, '').replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).trim();
+        newDisplayName = emailName
+          .replace(/[0-9]/g, '')
+          .replace(/[._]/g, ' ')
+          .replace(/\b\w/g, (l) => l.toUpperCase())
+          .trim();
       }
 
       setProfile({
         ...profile,
         displayName: newDisplayName || profile.displayName,
         photoURL: authUser.photoURL || profile.photoURL,
-        email: authUser.email || profile.email
+        email: authUser.email || profile.email,
       });
-      alert("Maklumat berjaya diekstrak daripada akaun log masuk.");
+      showNotification('Maklumat berjaya diekstrak daripada akaun log masuk.', 'success');
     } else {
-      alert("Tiada maklumat pengguna ditemui.");
+      showNotification('Tiada maklumat pengguna ditemui.', 'error');
     }
   };
 
   const handleSave = async () => {
-    if (!profile) return;
+    if (!profile || saving) return;
+    setSaving(true);
     try {
       await updateUserProfile(userId, profile);
       setIsEditing(false);
-      alert("Profil berjaya dikemas kini.");
+      showNotification('Profil berjaya dikemas kini.', 'success');
     } catch (error) {
-      console.error("Error updating profile:", error);
-      alert("Gagal mengemaskini profil.");
+      console.error('Error updating profile:', error);
+      showNotification('Gagal mengemaskini profil.', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -119,7 +142,7 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
     const newPosition = { organization: '', role: '', year: '' };
     setProfile({
       ...profile,
-      positions: [...(profile.positions || []), newPosition]
+      positions: [...(profile.positions || []), newPosition],
     });
   };
 
@@ -141,6 +164,20 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
     return <div className="p-8 text-center text-slate-500">Memuatkan profil...</div>;
   }
 
+  if (fetchError && !profile) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-600 font-medium">Gagal memuatkan profil.</p>
+        <button
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="mt-4 bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors"
+        >
+          Cuba Semula
+        </button>
+      </div>
+    );
+  }
+
   if (!profile) {
     return <div className="p-8 text-center text-red-500">Profil tidak dijumpai.</div>;
   }
@@ -148,8 +185,12 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">Profil Pemohon</h2>
-        <p className="text-sm text-slate-500 mt-1">Kemas kini maklumat peribadi dan jawatan anda.</p>
+        <h2 className="text-2xl font-bold text-slate-900 font-display tracking-tight">
+          Profil Pemohon
+        </h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Kemas kini maklumat peribadi dan jawatan anda.
+        </p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -160,38 +201,41 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
               <div className="w-24 h-24 bg-white rounded-full p-1 shadow-lg">
                 <div className="w-full h-full bg-slate-200 rounded-full flex items-center justify-center overflow-hidden">
                   {profile.photoURL ? (
-                    <img src={profile.photoURL} alt={profile.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img
+                      src={profile.photoURL}
+                      alt={profile.displayName}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
                     <UserIcon className="w-12 h-12 text-slate-400" />
                   )}
                 </div>
               </div>
-              {isEditing && (
-                <button className="absolute bottom-0 right-0 p-1.5 bg-white rounded-full shadow border border-slate-200 text-slate-600 hover:text-blue-600">
-                  <Camera className="w-4 h-4" />
-                </button>
-              )}
+              {/* Butang kamera tanpa fungsi dibuang — tiada aliran muat naik
+                  gambar profil; guna 'Ekstrak daripada Akaun' untuk gambar. */}
             </div>
           </div>
           <div className="absolute top-4 right-4 flex gap-2">
             {isEditing ? (
               <>
-                <button 
+                <button
                   onClick={handleExtractFromEmail}
                   className="flex items-center gap-2 bg-white/90 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-white transition-colors"
                   title="Ambil gambar dan nama daripada akaun log masuk"
                 >
                   <RefreshCw className="w-4 h-4" /> Ekstrak daripada Akaun
                 </button>
-                <button 
+                <button
                   onClick={handleSave}
-                  className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-blue-50 transition-colors"
+                  disabled={saving}
+                  className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-blue-50 transition-colors disabled:opacity-50"
                 >
-                  <Save className="w-4 h-4" /> Simpan Profil
+                  <Save className="w-4 h-4" /> {saving ? 'Sedang Disimpan...' : 'Simpan Profil'}
                 </button>
               </>
             ) : (
-              <button 
+              <button
                 onClick={() => setIsEditing(true)}
                 className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-semibold backdrop-blur-sm transition-colors"
               >
@@ -208,15 +252,17 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
               <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
                 <UserIcon className="w-5 h-5 text-blue-600" /> Maklumat Peribadi
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nama Penuh</label>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                    Nama Penuh
+                  </label>
                   {isEditing ? (
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={profile.displayName || ''}
-                      onChange={(e) => setProfile({...profile, displayName: e.target.value})}
+                      onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
                       className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   ) : (
@@ -226,12 +272,14 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">No. Matrik</label>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                      No. Matrik
+                    </label>
                     {isEditing ? (
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={profile.matricNumber || ''}
-                        onChange={(e) => setProfile({...profile, matricNumber: e.target.value})}
+                        onChange={(e) => setProfile({ ...profile, matricNumber: e.target.value })}
                         className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     ) : (
@@ -239,12 +287,14 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">No. Telefon</label>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                      No. Telefon
+                    </label>
                     {isEditing ? (
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={profile.phoneNumber || ''}
-                        onChange={(e) => setProfile({...profile, phoneNumber: e.target.value})}
+                        onChange={(e) => setProfile({ ...profile, phoneNumber: e.target.value })}
                         className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     ) : (
@@ -258,7 +308,9 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                     <Mail className="w-3 h-3" /> E-mel Siswa
                   </label>
                   <p className="text-slate-900 font-medium">{profile.email}</p>
-                  {isEditing && <p className="text-xs text-slate-400 mt-1">E-mel siswa tidak boleh diubah.</p>}
+                  {isEditing && (
+                    <p className="text-xs text-slate-400 mt-1">E-mel siswa tidak boleh diubah.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -268,21 +320,23 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
               <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
                 <Building className="w-5 h-5 text-blue-600" /> Maklumat Akademik
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
                     <BookOpen className="w-3 h-3" /> Fakulti / Akademi
                   </label>
                   {isEditing ? (
-                    <select 
+                    <select
                       value={profile.faculty || ''}
-                      onChange={(e) => setProfile({...profile, faculty: e.target.value})}
+                      onChange={(e) => setProfile({ ...profile, faculty: e.target.value })}
                       className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Pilih Fakulti</option>
-                      {faculties.map(f => (
-                        <option key={f} value={f}>{f}</option>
+                      {faculties.map((f) => (
+                        <option key={f} value={f}>
+                          {f}
+                        </option>
                       ))}
                     </select>
                   ) : (
@@ -295,14 +349,16 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                     <Building className="w-3 h-3" /> Kolej Kediaman
                   </label>
                   {isEditing ? (
-                    <select 
+                    <select
                       value={profile.college || ''}
-                      onChange={(e) => setProfile({...profile, college: e.target.value})}
+                      onChange={(e) => setProfile({ ...profile, college: e.target.value })}
                       className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Pilih Kolej</option>
-                      {colleges.map(c => (
-                        <option key={c} value={c}>{c}</option>
+                      {colleges.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
                       ))}
                       <option value="Luar Kampus">Luar Kampus</option>
                     </select>
@@ -321,7 +377,7 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                 <Award className="w-5 h-5 text-blue-600" /> Senarai Jawatan (Kelab/Persatuan)
               </h3>
               {isEditing && (
-                <button 
+                <button
                   onClick={handleAddPosition}
                   className="text-sm text-blue-600 font-semibold hover:text-blue-700"
                 >
@@ -329,7 +385,7 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                 </button>
               )}
             </div>
-            
+
             <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-100 border-b border-slate-200 text-slate-600">
@@ -345,40 +401,48 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                     <tr key={index} className="hover:bg-white transition-colors">
                       <td className="p-3 font-medium text-slate-900">
                         {isEditing ? (
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={pos.organization || ''}
-                            onChange={(e) => handlePositionChange(index, 'organization', e.target.value)}
+                            onChange={(e) =>
+                              handlePositionChange(index, 'organization', e.target.value)
+                            }
                             className="w-full border border-slate-300 rounded p-1"
                             placeholder="Nama Organisasi"
                           />
-                        ) : pos.organization}
+                        ) : (
+                          pos.organization
+                        )}
                       </td>
                       <td className="p-3 text-slate-700">
                         {isEditing ? (
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={pos.role || ''}
                             onChange={(e) => handlePositionChange(index, 'role', e.target.value)}
                             className="w-full border border-slate-300 rounded p-1"
                             placeholder="Jawatan"
                           />
-                        ) : pos.role}
+                        ) : (
+                          pos.role
+                        )}
                       </td>
                       <td className="p-3 text-slate-600">
                         {isEditing ? (
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={pos.year || ''}
                             onChange={(e) => handlePositionChange(index, 'year', e.target.value)}
                             className="w-full border border-slate-300 rounded p-1"
                             placeholder="Sesi"
                           />
-                        ) : pos.year}
+                        ) : (
+                          pos.year
+                        )}
                       </td>
                       {isEditing && (
                         <td className="p-3 text-right">
-                          <button 
+                          <button
                             onClick={() => handleRemovePosition(index)}
                             className="text-red-500 hover:text-red-700 font-medium text-xs"
                           >
@@ -390,7 +454,10 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                   ))}
                   {(!profile.positions || profile.positions.length === 0) && (
                     <tr>
-                      <td colSpan={isEditing ? 4 : 3} className="p-4 text-center text-slate-500 italic">
+                      <td
+                        colSpan={isEditing ? 4 : 3}
+                        className="p-4 text-center text-slate-500 italic"
+                      >
                         Tiada rekod jawatan.
                       </td>
                     </tr>

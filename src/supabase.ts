@@ -1,4 +1,4 @@
-// Klien Supabase — pengganti Firebase (Auth + Postgres + Storage).
+// Klien Supabase (Auth + Postgres + Storage).
 // Kunci di bawah ialah *publishable key* (selamat untuk kod klien; kawalan
 // akses sebenar dikuatkuasakan oleh polisi RLS dalam supabase/schema.sql).
 
@@ -26,8 +26,7 @@ export function usernameToEmail(username: string): string {
 
 export const PORTAL_ADMIN_EMAIL = usernameToEmail(PORTAL_USERNAME);
 
-// Bentuk pengguna yang digunakan oleh UI (serasi dengan bentuk Firebase lama:
-// uid / email / displayName / photoURL).
+// Bentuk pengguna yang digunakan oleh UI (uid / email / displayName / photoURL).
 export interface AppUser {
   uid: string;
   email: string;

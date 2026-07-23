@@ -63,7 +63,7 @@ export default function BakatProfile({
 
   const scores = useMemo(
     () => recalculateStudent(studentId, COMPETENCY_CODES, evidence),
-    [studentId, evidence]
+    [studentId, evidence],
   );
 
   // Radar memaparkan HANYA kompetensi yang berskor — bakat yang ada.
@@ -74,25 +74,25 @@ export default function BakatProfile({
         label: c.name_ms,
         score: scores.find((s) => s.competency_id === c.code)?.score ?? 0,
       })).filter((d) => d.score > 0),
-    [scores]
+    [scores],
   );
 
   const breakdown = useMemo(
     () => scoreBreakdown(studentId, active, evidence),
-    [studentId, active, evidence]
+    [studentId, active, evidence],
   );
 
   const nonContributing = useMemo(
     () =>
       evidence.filter(
-        (e) => e.student_id === studentId && e.competency_id === active && e.status !== 'approved'
+        (e) => e.student_id === studentId && e.competency_id === active && e.status !== 'approved',
       ),
-    [evidence, studentId, active]
+    [evidence, studentId, active],
   );
 
   const ledger = useMemo(
     () => [...evidence].sort((a, b) => b.event_date.localeCompare(a.event_date)),
-    [evidence]
+    [evidence],
   );
 
   const strengths = useMemo(
@@ -101,7 +101,7 @@ export default function BakatProfile({
         .filter((s) => s.score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, 4),
-    [scores]
+    [scores],
   );
 
   const approved = useMemo(() => evidence.filter((e) => e.status === 'approved'), [evidence]);
@@ -141,7 +141,9 @@ export default function BakatProfile({
   const handleDispute = async (id: string) => {
     try {
       await disputeEvidenceDoc(id);
-      setNotification('Bukti ditandakan sebagai dipertikaikan. Skor telah dikira semula tanpa bukti ini.');
+      setNotification(
+        'Bukti ditandakan sebagai dipertikaikan. Skor telah dikira semula tanpa bukti ini.',
+      );
       setTimeout(() => setNotification(null), 4000);
       await fetchEvidence();
     } catch (error) {
@@ -177,7 +179,9 @@ export default function BakatProfile({
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col sm:flex-row sm:items-center gap-5">
           <Avatar name={displayName} size="lg" />
           <div className="flex-1 min-w-0">
-            <h3 className="font-display text-xl font-bold text-slate-900 truncate">{displayName}</h3>
+            <h3 className="font-display text-xl font-bold text-slate-900 truncate">
+              {displayName}
+            </h3>
             <p className="text-sm text-slate-500 truncate">
               {[matricNumber, faculty, college].filter(Boolean).join(' · ') || '—'}
             </p>
@@ -201,11 +205,14 @@ export default function BakatProfile({
       {!hasEvidence ? (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
           <Sparkles className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h3 className="font-display text-lg font-bold text-slate-900 mb-2">Profil bakat belum bermula</h3>
+          <h3 className="font-display text-lg font-bold text-slate-900 mb-2">
+            Profil bakat belum bermula
+          </h3>
           <p className="text-sm text-slate-500 max-w-md mx-auto">
-            Bukti bakat dijana secara automatik apabila program yang {studentName ? `diurus oleh ${studentName}` : 'anda uruskan'} diluluskan
-            sepenuhnya dan laporan pascaprogramnya disahkan oleh Unit Pelaporan. Mohon dan laksanakan
-            program melalui modul Permohonan untuk mula membina profil bakat.
+            Bukti bakat dijana secara automatik apabila program yang{' '}
+            {studentName ? `diurus oleh ${studentName}` : 'anda uruskan'} diluluskan sepenuhnya dan
+            laporan pascaprogramnya disahkan oleh Unit Pelaporan. Mohon dan laksanakan program
+            melalui modul Permohonan untuk mula membina profil bakat.
           </p>
         </div>
       ) : (
@@ -214,7 +221,9 @@ export default function BakatProfile({
             {/* Radar */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
               <h3 className="font-display text-lg font-bold text-slate-900">Radar Bakat</h3>
-              <p className="text-xs text-slate-500 mb-2">Bakat yang terbukti sahaja — klik mana-mana paksi untuk melihat bukti di sebaliknya.</p>
+              <p className="text-xs text-slate-500 mb-2">
+                Bakat yang terbukti sahaja — klik mana-mana paksi untuk melihat bukti di sebaliknya.
+              </p>
               <TalentRadar
                 data={radarData}
                 active={active}
@@ -226,7 +235,9 @@ export default function BakatProfile({
             <div className="space-y-6">
               {/* Kategori bakat sepadan */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <h3 className="font-display text-lg font-bold text-slate-900 mb-4">Kekuatan Utama</h3>
+                <h3 className="font-display text-lg font-bold text-slate-900 mb-4">
+                  Kekuatan Utama
+                </h3>
                 <div className="space-y-4">
                   {strengths.map((s) => {
                     const Icon = COMPETENCY_ICON[s.competency_id];
@@ -259,9 +270,15 @@ export default function BakatProfile({
 
               {/* Ringkasan bakat */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <h3 className="font-display text-lg font-bold text-slate-900 mb-2">Ringkasan Bakat</h3>
+                <h3 className="font-display text-lg font-bold text-slate-900 mb-2">
+                  Ringkasan Bakat
+                </h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  {talentSummary(studentName, { strengths, approvedCount: approved.length, programmeCount })}
+                  {talentSummary(studentName, {
+                    strengths,
+                    approvedCount: approved.length,
+                    programmeCount,
+                  })}
                 </p>
                 <p className="text-xs text-slate-400 mt-3 flex items-center gap-1">
                   <Info className="w-3.5 h-3.5" /> Dikira daripada bukti — bukan janaan AI.
@@ -308,7 +325,10 @@ export default function BakatProfile({
             <h3 className="font-display text-lg font-bold text-slate-900 mb-4">Aktiviti Program</h3>
             <div className="space-y-3">
               {activities.map((a) => (
-                <div key={a.sourceId} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 p-4">
+                <div
+                  key={a.sourceId}
+                  className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 p-4"
+                >
                   <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                     <CalendarDays className="w-4 h-4" />
                   </div>
@@ -334,8 +354,8 @@ export default function BakatProfile({
             <h3 className="font-display text-lg font-bold text-slate-900">Lejar Bukti</h3>
             <p className="text-xs text-slate-500 mb-4 flex items-center gap-1">
               <Info className="w-3.5 h-3.5" />
-              Setiap skor diterbitkan daripada rekod bukti yang tidak boleh diubah — dijana automatik
-              daripada program e-Kesatuan yang lulus sepenuhnya dan laporannya disahkan.
+              Setiap skor diterbitkan daripada rekod bukti yang tidak boleh diubah — dijana
+              automatik daripada program e-Kesatuan yang lulus sepenuhnya dan laporannya disahkan.
             </p>
             <div className="space-y-2">
               {ledger.map((e) => (
@@ -344,7 +364,9 @@ export default function BakatProfile({
                   className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-medium text-slate-900 ${e.status === 'disputed' ? 'line-through' : ''}`}>
+                    <p
+                      className={`text-sm font-medium text-slate-900 ${e.status === 'disputed' ? 'line-through' : ''}`}
+                    >
                       {e.narrative}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">

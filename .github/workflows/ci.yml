@@ -1,0 +1,28 @@
+# Integrasi berterusan — semakan wajib sebelum gabung.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  semak:
+    name: Lint, semakan bakat, binaan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Pasang kebergantungan
+        run: npm ci
+      - name: Semakan jenis TypeScript
+        run: npm run lint
+      - name: ESLint
+        run: npx eslint src scripts --max-warnings 100
+      - name: Semakan sifat Modul Bakat
+        run: npm run check:bakat
+      - name: Binaan pengeluaran
+        run: npm run build

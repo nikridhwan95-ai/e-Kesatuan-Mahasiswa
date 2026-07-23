@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Calendar, CheckCircle, XCircle, Clock, BookOpen, DoorOpen, Trash2, Link as LinkIcon } from 'lucide-react';
+import { Plus, Calendar, Clock, BookOpen, DoorOpen, Trash2, Link as LinkIcon } from 'lucide-react';
 import { PresentationSession } from '../../types';
 import { getCurrentAcademicSession, generateAcademicSessions } from '../../utils/dateUtils';
 
@@ -10,7 +10,12 @@ interface PresentationSessionManagerProps {
   onDeleteSession: (id: string) => void;
 }
 
-export default function PresentationSessionManager({ sessions, onAddSession, onToggleStatus, onDeleteSession }: PresentationSessionManagerProps) {
+export default function PresentationSessionManager({
+  sessions,
+  onAddSession,
+  onToggleStatus,
+  onDeleteSession,
+}: PresentationSessionManagerProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [newSession, setNewSession] = useState<Partial<PresentationSession>>({
@@ -20,7 +25,7 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
     date: '',
     time: '',
     link: '',
-    status: 'Open'
+    status: 'Open',
   });
 
   // Generate academic sessions based on current year
@@ -37,10 +42,18 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
         date: newSession.date,
         time: newSession.time,
         link: newSession.link || '',
-        status: newSession.status as 'Open' | 'Closed'
+        status: newSession.status as 'Open' | 'Closed',
       });
       setIsFormOpen(false);
-      setNewSession({ name: '', academicSession: '', roomCount: 1, date: '', time: '', link: '', status: 'Open' });
+      setNewSession({
+        name: '',
+        academicSession: '',
+        roomCount: 1,
+        date: '',
+        time: '',
+        link: '',
+        status: 'Open',
+      });
     }
   };
 
@@ -48,14 +61,22 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-display">Pengurusan Sesi Semakan</h3>
+          <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-display">
+            Pengurusan Sesi Semakan
+          </h3>
           <p className="text-sm text-slate-500 mt-1">Buka dan tutup sesi semakan untuk pelajar.</p>
         </div>
         <button
           onClick={() => setIsFormOpen(!isFormOpen)}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm"
         >
-          {isFormOpen ? 'Batal' : <><Plus className="w-4 h-4" /> Buka Sesi Baru</>}
+          {isFormOpen ? (
+            'Batal'
+          ) : (
+            <>
+              <Plus className="w-4 h-4" /> Buka Sesi Baru
+            </>
+          )}
         </button>
       </div>
 
@@ -76,21 +97,27 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Sesi Akademik</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  Sesi Akademik
+                </label>
                 <select
                   required
                   value={newSession.academicSession}
-                  onChange={(e) => setNewSession({ ...newSession, academicSession: e.target.value })}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, academicSession: e.target.value })
+                  }
                   className="w-full border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 >
                   <option value="">Pilih Sesi Akademik...</option>
-                  {academicSessions.map(session => (
-                    <option key={session} value={session}>{session}</option>
+                  {academicSessions.map((session) => (
+                    <option key={session} value={session}>
+                      {session}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Tarikh</label>
@@ -113,7 +140,9 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Pautan Bilik (Zoom/Meet)</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  Pautan Bilik (Zoom/Meet)
+                </label>
                 <input
                   type="url"
                   placeholder="https://..."
@@ -123,21 +152,28 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Bilangan Bilik</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  Bilangan Bilik
+                </label>
                 <input
                   type="number"
                   min="1"
                   max="20"
                   required
                   value={newSession.roomCount}
-                  onChange={(e) => setNewSession({ ...newSession, roomCount: parseInt(e.target.value) || 1 })}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, roomCount: parseInt(e.target.value) || 1 })
+                  }
                   onWheel={(e) => (e.target as HTMLInputElement).blur()}
                   className="w-full border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
             <div className="flex justify-end pt-2">
-              <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl font-semibold hover:bg-blue-700 transition-colors">
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-5 py-2 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+              >
                 Simpan Sesi
               </button>
             </div>
@@ -189,7 +225,12 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
                 </td>
                 <td className="px-6 py-4">
                   {session.link ? (
-                    <a href={session.link} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-blue-600 hover:underline">
+                    <a
+                      href={session.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 text-blue-600 hover:underline"
+                    >
                       <LinkIcon className="w-4 h-4" />
                       Pautan
                     </a>
@@ -198,9 +239,13 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                    session.status === 'Open' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200'
-                  }`}>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                      session.status === 'Open'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
                     {session.status === 'Open' ? 'Dibuka' : 'Ditutup'}
                   </span>
                 </td>
@@ -209,8 +254,8 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
                     <button
                       onClick={() => onToggleStatus(session.id)}
                       className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
-                        session.status === 'Open' 
-                          ? 'text-amber-600 border-amber-200 hover:bg-amber-50' 
+                        session.status === 'Open'
+                          ? 'text-amber-600 border-amber-200 hover:bg-amber-50'
                           : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
                       }`}
                     >
@@ -219,8 +264,21 @@ export default function PresentationSessionManager({ sessions, onAddSession, onT
                     {sessionToDelete === session.id ? (
                       <div className="flex items-center gap-1 bg-red-50 px-2 py-1 rounded-lg border border-red-100">
                         <span className="text-[10px] font-semibold text-red-700">Pasti?</span>
-                        <button onClick={() => { onDeleteSession(session.id); setSessionToDelete(null); }} className="text-[10px] font-bold text-white bg-red-600 px-1.5 py-0.5 rounded hover:bg-red-700">Ya</button>
-                        <button onClick={() => setSessionToDelete(null)} className="text-[10px] font-semibold text-slate-600 bg-slate-200 px-1.5 py-0.5 rounded hover:bg-slate-300">Batal</button>
+                        <button
+                          onClick={() => {
+                            onDeleteSession(session.id);
+                            setSessionToDelete(null);
+                          }}
+                          className="text-[10px] font-bold text-white bg-red-600 px-1.5 py-0.5 rounded hover:bg-red-700"
+                        >
+                          Ya
+                        </button>
+                        <button
+                          onClick={() => setSessionToDelete(null)}
+                          className="text-[10px] font-semibold text-slate-600 bg-slate-200 px-1.5 py-0.5 rounded hover:bg-slate-300"
+                        >
+                          Batal
+                        </button>
                       </div>
                     ) : (
                       <button

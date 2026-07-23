@@ -12,7 +12,6 @@ export default function EvidenceRow({
   contribution,
   onDispute,
 }: {
-  key?: string; // @types/react tiada dalam projek ini; 'key' perlu diisytihar
   evidence: Evidence;
   contribution?: Contribution;
   onDispute?: (id: string) => void;
@@ -95,7 +94,9 @@ function Factor({ label, value, strong }: { label: string; value: string; strong
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-slate-500">{label}</span>
-      <span className={`tabular-nums ${strong ? 'font-semibold text-emerald-600' : 'text-slate-700'}`}>
+      <span
+        className={`tabular-nums ${strong ? 'font-semibold text-emerald-600' : 'text-slate-700'}`}
+      >
         {value}
       </span>
     </div>

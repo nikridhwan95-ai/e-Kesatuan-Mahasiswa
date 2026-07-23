@@ -2,6 +2,13 @@
 // Fungsi TULEN yang menterjemah fakta e-Kesatuan (permohonan yang Lulus
 // Sepenuhnya + laporan pascaprogram yang Disahkan) kepada rekod Evidence.
 //
+// LIPUTAN KOMPETENSI: pemetaan di bawah hanya mampu menjana bukti untuk
+// {LEA, PRJ, FIN, VOL, ART, SPO, ENT, RES, COM, CRT, NET, DIG}. Empat
+// kompetensi — INN, TEC, GLO, NEG — TIADA laluan derivation daripada data
+// e-Kesatuan dan hanya boleh diisi melalui bukti manual/pengesahan
+// (manual_endorsement) pada masa hadapan; paksi radar mereka kekal 0
+// sehingga itu.
+//
 // Evidence terbitan lahir dengan status 'approved' kerana fakta asalnya telah
 // melalui rantaian kelulusan penuh e-Kesatuan (Unit Semakan → Pembentangan →
 // YDP → TNC HEPA) DAN laporan pascaprogram disahkan oleh Unit Pelaporan.
@@ -10,39 +17,34 @@
 // penjanaan semula bersifat idempotent — rekod sedia ada tidak diganda.
 
 import { Application, Report } from '../types';
-import {
-  CompetencyCode,
-  Evidence,
-  ProgrammeLevel,
-  RoleType,
-} from './domain';
+import { CompetencyCode, Evidence, ProgrammeLevel, RoleType } from './domain';
 
 // Peringkat Penganjuran e-Kesatuan → ProgrammeLevel SDD.
 // 'Negeri' tiada padanan langsung dalam SDD (4 peringkat sahaja) — dipetakan
 // ke 'national' sebagai peringkat terdekat.
 export const LEVEL_MAP: Record<string, ProgrammeLevel> = {
-  'Antarabangsa': 'international',
-  'Kebangsaan': 'national',
-  'Negeri': 'national',
-  'Universiti': 'university',
+  Antarabangsa: 'international',
+  Kebangsaan: 'national',
+  Negeri: 'national',
+  Universiti: 'university',
   'Kolej atau Fakulti': 'faculty',
 };
 
 // Jawatan Pemohon e-Kesatuan → RoleType SDD (Appendix C).
 export const ROLE_MAP: Record<string, RoleType> = {
-  'Pengarah': 'chairperson',
-  'Setiausaha': 'secretary',
+  Pengarah: 'chairperson',
+  Setiausaha: 'secretary',
 };
 
 // Kategori program (8 Teras) → kompetensi utama yang dibina oleh program itu.
 export const CATEGORY_COMPETENCY: Record<string, CompetencyCode> = {
-  'Kesukarelawanan': 'VOL',
-  'Kepimpinan': 'LEA',
-  'Kebudayaan': 'ART',
-  'Sukan': 'SPO',
-  'Keusahawanan': 'ENT',
+  Kesukarelawanan: 'VOL',
+  Kepimpinan: 'LEA',
+  Kebudayaan: 'ART',
+  Sukan: 'SPO',
+  Keusahawanan: 'ENT',
   'Akademik & Intelektual': 'RES',
-  'Kerohanian': 'VOL',
+  Kerohanian: 'VOL',
   'Kelestarian & Alam Sekitar': 'VOL',
 };
 
@@ -64,14 +66,22 @@ export function qualifiesForEvidence(app: Application, report: Report | undefine
 }
 
 export function evidenceId(appId: string, sourceType: string, competency: CompetencyCode): string {
-  // Aksara '/' tidak dibenarkan dalam ID dokumen Firestore; ID permohonan
-  // e-Kesatuan (cth "KM.25-26.001") selamat digunakan terus.
+  // ID permohonan e-Kesatuan (cth "KM.25-26.001") selamat digunakan terus.
   return `${appId}__${sourceType}__${competency}`;
 }
 
+// Fungsi TOTAL: tidak sekali-kali melempar. Jika kedua-dua tarikh rosak,
+// pulangkan penanda epok yang deterministik — Faktor Masa akan mereputkannya
+// kepada sumbangan ~0 dan bukannya menggagalkan keseluruhan derivation.
+const EPOCH_SENTINEL = '1970-01-01T00:00:00.000Z';
+
 function toISO(date: string | undefined, fallback: string): string {
-  const d = date && !Number.isNaN(new Date(date).getTime()) ? date : fallback;
-  return new Date(d).toISOString();
+  for (const candidate of [date, fallback]) {
+    if (!candidate) continue;
+    const t = new Date(candidate).getTime();
+    if (!Number.isNaN(t)) return new Date(t).toISOString();
+  }
+  return EPOCH_SENTINEL;
 }
 
 // Terbitkan semua rekod Evidence bagi SATU program yang layak.
@@ -83,7 +93,8 @@ export function deriveEvidence(app: Application, report: Report | undefined): Ev
   const role = app.applicantPosition ? ROLE_MAP[app.applicantPosition] : undefined;
   const eventDate = toISO(app.endDate || app.startDate, app.updatedAt || app.createdAt);
   const approvedAt = toISO(report?.reviewedAt, eventDate);
-  const roleLabel = app.applicantPosition === 'Pengarah' ? 'Pengarah Program' : 'Setiausaha Program';
+  const roleLabel =
+    app.applicantPosition === 'Pengarah' ? 'Pengarah Program' : 'Setiausaha Program';
 
   const rows: Evidence[] = [];
   const seen = new Set<string>(); // "sourceType:competency" — elak rekod berganda

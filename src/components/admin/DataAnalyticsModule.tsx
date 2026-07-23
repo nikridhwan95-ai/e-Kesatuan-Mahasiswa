@@ -1,43 +1,47 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
 } from 'recharts';
 import {
-  AlertTriangle, BarChart2, CheckCircle2, Info, Loader2, Sparkles, Clock, TrendingUp, Users2, Wallet, Coins, FileText,
+  AlertTriangle,
+  BarChart2,
+  CheckCircle2,
+  Info,
+  Loader2,
+  Sparkles,
+  Clock,
+  TrendingUp,
+  Users2,
+  Wallet,
+  Coins,
+  FileText,
 } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { getApplications, getCategories, getReports, getUsers } from '../../services/dataService';
+import { supabase } from '../../supabase';
+import { SEMESTER_ALLOCATION, categoryColor } from '../../constants';
 import { Application, Report, User } from '../../types';
 import { StatCard } from '../bakat/ui';
 
 // Peruntukan BHEP setiap semester (RM).
-const SEMESTER_ALLOCATION = 200000;
-
-// Warna TETAP per kategori 8 Teras — disahkan lulus semakan buta warna
-// (deutan ΔE 16.7) dengan scripts validate_palette dataviz. Warna mengikut
-// kategori, BUKAN susunan kemunculan, supaya kekal konsisten walau ditapis.
-const CATEGORY_COLORS: Record<string, string> = {
-  'Kesukarelawanan': '#1d4ed8',
-  'Kepimpinan': '#d97706',
-  'Kebudayaan': '#991b1b',
-  'Sukan': '#0891b2',
-  'Keusahawanan': '#6d28d9',
-  'Akademik & Intelektual': '#ea580c',
-  'Kerohanian': '#4338ca',
-  'Kelestarian & Alam Sekitar': '#4d7c0f',
-};
-const FALLBACK_COLOR = '#64748b'; // kategori luar 8 Teras
 const APPROVED_COLOR = '#1d4ed8'; // Kewangan Diluluskan
 const USED_COLOR = '#059669'; // Kewangan Digunakan
 
-const catColor = (cat: string) => CATEGORY_COLORS[cat] ?? FALLBACK_COLOR;
+const catColor = categoryColor;
 
 const fmtRM = (n: number) =>
   n.toLocaleString('ms-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const fmtRMShort = (n: number) =>
-  n >= 1000 ? `RM${Math.round(n / 1000)}k` : `RM${n}`;
+const fmtRMShort = (n: number) => (n >= 1000 ? `RM${Math.round(n / 1000)}k` : `RM${n}`);
 
 const SOFTSKILL_OPTIONS = [
   'Kemahiran Berkomunikasi',
@@ -136,10 +140,20 @@ export default function DataAnalyticsModule() {
       const matchesSesi = filters.sesi === 'Semua' || app.academicSession === filters.sesi;
       const matchesSemester = filters.semester === 'Semua' || app.semester === filters.semester;
       const matchesTeras = filters.teras === 'Semua' || app.category === filters.teras;
-      const matchesPeringkat = filters.peringkat === 'Semua' || app.organizingLevel === filters.peringkat;
+      const matchesPeringkat =
+        filters.peringkat === 'Semua' || app.organizingLevel === filters.peringkat;
       const matchesStatus = filters.status === 'Semua' || app.status === filters.status;
-      const matchesImpak = filters.impak === 'Semua' || (app.softSkills ?? []).includes(filters.impak);
-      return matchesYear && matchesSesi && matchesSemester && matchesTeras && matchesPeringkat && matchesStatus && matchesImpak;
+      const matchesImpak =
+        filters.impak === 'Semua' || (app.softSkills ?? []).includes(filters.impak);
+      return (
+        matchesYear &&
+        matchesSesi &&
+        matchesSemester &&
+        matchesTeras &&
+        matchesPeringkat &&
+        matchesStatus &&
+        matchesImpak
+      );
     });
   }, [applications, filters]);
 
@@ -174,7 +188,10 @@ export default function DataAnalyticsModule() {
       counts.set(app.category, (counts.get(app.category) ?? 0) + 1);
     }
     // Susunan tetap mengikut senarai kategori supaya warna & tertib stabil.
-    const ordered = [...categories, ...Array.from(counts.keys()).filter((c) => !categories.includes(c))];
+    const ordered = [
+      ...categories,
+      ...Array.from(counts.keys()).filter((c) => !categories.includes(c)),
+    ];
     return ordered
       .filter((cat) => (counts.get(cat) ?? 0) > 0)
       .map((cat) => ({ name: cat, value: counts.get(cat)!, hex: catColor(cat) }));
@@ -183,7 +200,7 @@ export default function DataAnalyticsModule() {
   // ── Aktiviti mengikut suku tahun (bar bertindan) ─────────────────────────
   const quarterData = useMemo(() => {
     const quarters = ['Suku 1', 'Suku 2', 'Suku 3', 'Suku 4'].map(
-      (name) => ({ name } as Record<string, string | number>)
+      (name) => ({ name }) as Record<string, string | number>,
     );
     for (const app of filteredApps) {
       const month = new Date(app.startDate).getMonth();
@@ -194,10 +211,7 @@ export default function DataAnalyticsModule() {
     return quarters;
   }, [filteredApps]);
 
-  const activeCategories = useMemo(
-    () => donutData.map((d) => d.name),
-    [donutData]
-  );
+  const activeCategories = useMemo(() => donutData.map((d) => d.name), [donutData]);
 
   // ── Peserta mengikut peringkat × teras ───────────────────────────────────
   const participantMatrix = useMemo(() => {
@@ -272,15 +286,18 @@ export default function DataAnalyticsModule() {
   // Program lulus sepenuhnya yang laporannya BELUM disahkan — tindakan susulan.
   const pendingReports = useMemo(
     () =>
-      filteredApps.filter(
-        (a) => a.status === 'Lulus Sepenuhnya' && !verifiedReportByApp.has(a.id)
-      ),
-    [filteredApps, verifiedReportByApp]
+      filteredApps.filter((a) => a.status === 'Lulus Sepenuhnya' && !verifiedReportByApp.has(a.id)),
+    [filteredApps, verifiedReportByApp],
   );
 
   // Sorotan keputusan berasaskan peraturan — setiap satu disertakan TINDAKAN.
   const decisionInsights = useMemo(() => {
-    const out: { title: string; body: string; action: string; tone: 'positive' | 'warning' | 'info' }[] = [];
+    const out: {
+      title: string;
+      body: string;
+      action: string;
+      tone: 'positive' | 'warning' | 'info';
+    }[] = [];
     const withData = terasDecision.rows.filter((r) => r.total > 0);
 
     // 1) Keseimbangan 8 Teras — teras tanpa aktiviti dalam skop semasa.
@@ -291,7 +308,8 @@ export default function DataAnalyticsModule() {
           tone: 'warning',
           title: 'Teras Tanpa Aktiviti',
           body: `${empty.join(', ')} — tiada sebarang program dalam skop semasa.`,
-          action: 'Buka tawaran atau promosi program bagi teras berkenaan untuk keseimbangan 8 Teras.',
+          action:
+            'Buka tawaran atau promosi program bagi teras berkenaan untuk keseimbangan 8 Teras.',
         });
       }
     }
@@ -299,17 +317,25 @@ export default function DataAnalyticsModule() {
     // 2) Nilai terbaik: kos per peserta terendah (jangkauan tertinggi per ringgit).
     const withCost = withData.filter((r) => r.costPerParticipant !== null && r.participants >= 30);
     if (withCost.length >= 2) {
-      const best = withCost.reduce((a, b) => (a.costPerParticipant! < b.costPerParticipant! ? a : b));
+      const best = withCost.reduce((a, b) =>
+        a.costPerParticipant! < b.costPerParticipant! ? a : b,
+      );
       out.push({
         tone: 'positive',
         title: 'Jangkauan Terbaik Setiap Ringgit',
         body: `Teras ${best.cat}: RM${best.costPerParticipant!.toFixed(2)} seorang peserta (${best.participants.toLocaleString('ms-MY')} peserta, RM${Math.round(best.used).toLocaleString('ms-MY')} dibelanja).`,
-        action: 'Pertimbangkan menambah peruntukan teras ini — jangkauan pelajar paling tinggi bagi setiap ringgit.',
+        action:
+          'Pertimbangkan menambah peruntukan teras ini — jangkauan pelajar paling tinggi bagi setiap ringgit.',
       });
     }
 
     // 3) Mutu kertas kerja: kadar kelulusan terendah (sekurang-kurangnya 2 keputusan).
-    const withRate = withData.filter((r) => r.approvalRate !== null && r.approvedCount + (r.total - r.approvedCount) >= 2 && r.approvalRate < 60);
+    const withRate = withData.filter(
+      (r) =>
+        r.approvalRate !== null &&
+        r.approvedCount + (r.total - r.approvedCount) >= 2 &&
+        r.approvalRate < 60,
+    );
     if (withRate.length > 0) {
       const worst = withRate.reduce((a, b) => (a.approvalRate! < b.approvalRate! ? a : b));
       out.push({
@@ -326,7 +352,8 @@ export default function DataAnalyticsModule() {
         tone: 'warning',
         title: 'Laporan Pascaprogram Tertunggak',
         body: `${pendingReports.length} program lulus sepenuhnya masih belum mempunyai laporan yang disahkan.`,
-        action: 'Tuntut laporan — tanpa pengesahan, perbelanjaan tidak direkod dan bukti bakat pelajar tidak terjana.',
+        action:
+          'Tuntut laporan — tanpa pengesahan, perbelanjaan tidak direkod dan bukti bakat pelajar tidak terjana.',
       });
     }
 
@@ -349,36 +376,33 @@ export default function DataAnalyticsModule() {
     return out.slice(0, 5);
   }, [terasDecision, pendingReports, semesterBudgetData, filters.teras]);
 
+  // Panggilan Gemini dibuat di sisi pelayan (Fungsi Edge 'jana-analisis') —
+  // kunci API tidak pernah sampai ke pelayar. Prompt dibina oleh fungsi.
   const generateAIInsight = async () => {
     setIsGeneratingAI(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const categorySummary = donutData.map((d) => `${d.name}: ${d.value}`).join(', ');
-      const prompt = `
-        Berdasarkan data aktiviti pelajar universiti berikut (Tahun: ${filters.tahun}, Teras: ${filters.teras}, Peringkat: ${filters.peringkat}), berikan satu perenggan analisis eksekutif mengenai trend semasa dan cadangan penambahbaikan.
-
-        Data Semasa (Ditapis):
-        Jumlah Permohonan: ${summary.total}
-        Permohonan Lulus Sepenuhnya: ${summary.approvedCount} (${summary.approvalRate}%)
-        Bajet Diluluskan: RM${summary.budgetApproved.toLocaleString()}
-        Bajet Digunakan (disahkan): RM${summary.budgetUsed.toLocaleString()}
-        Jumlah Peserta Terlibat: ${summary.participants.toLocaleString()}
-        Taburan Kategori Program: ${categorySummary}
-
-        Sila berikan ulasan yang kritikal tetapi membina untuk membantu pihak pengurusan membuat keputusan yang lebih baik.
-      `;
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          systemInstruction:
-            'Anda ialah penganalisis data universiti yang pakar dalam pembangunan pelajar. Berikan analisis yang profesional, padat dan berwawasan dalam Bahasa Melayu.',
+      const { data, error } = await supabase.functions.invoke('jana-analisis', {
+        body: {
+          jenis: 'analitik',
+          data: {
+            tahun: filters.tahun,
+            teras: filters.teras,
+            peringkat: filters.peringkat,
+            jumlahPermohonan: summary.total,
+            permohonanLulus: summary.approvedCount,
+            kadarLulus: summary.approvalRate,
+            bajetDiluluskan: summary.budgetApproved,
+            bajetDigunakan: summary.budgetUsed,
+            peserta: summary.participants,
+            taburanKategori: donutData.map((d) => ({ name: d.name, value: d.value })),
+          },
         },
       });
-      setAiInsight(response.text || 'Tiada analisis dapat dijana.');
+      if (error) throw error;
+      setAiInsight((data as { text?: string })?.text || 'Tiada analisis dapat dijana.');
     } catch (error) {
       console.error('Error generating AI insight:', error);
-      setAiInsight('Gagal menjana analisis AI. Sila semak konfigurasi API.');
+      setAiInsight('Gagal menjana analisis AI. Sila cuba lagi.');
     } finally {
       setIsGeneratingAI(false);
     }
@@ -413,7 +437,11 @@ export default function DataAnalyticsModule() {
           disabled={isGeneratingAI}
           className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50"
         >
-          {isGeneratingAI ? <Clock className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-amber-400" />}
+          {isGeneratingAI ? (
+            <Clock className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4 text-amber-400" />
+          )}
           Jana Analisis AI
         </button>
       </div>
@@ -492,11 +520,16 @@ export default function DataAnalyticsModule() {
             <div className="flex items-center gap-2 text-amber-400 font-bold font-display tracking-wide text-sm">
               <Sparkles className="w-5 h-5" /> ANALISIS EKSEKUTIF AI
             </div>
-            <button onClick={() => setAiInsight(null)} className="text-slate-400 hover:text-white text-xs font-medium">
+            <button
+              onClick={() => setAiInsight(null)}
+              className="text-slate-400 hover:text-white text-xs font-medium"
+            >
               Tutup
             </button>
           </div>
-          <div className="text-slate-200 leading-relaxed text-sm relative z-10 whitespace-pre-wrap">{aiInsight}</div>
+          <div className="text-slate-200 leading-relaxed text-sm relative z-10 whitespace-pre-wrap">
+            {aiInsight}
+          </div>
           <p className="mt-4 pt-3 border-t border-slate-700/50 text-[10px] text-slate-500 relative z-10">
             Dijana oleh Gemini AI · berdasarkan data penapisan semasa
           </p>
@@ -505,11 +538,41 @@ export default function DataAnalyticsModule() {
 
       {/* Kad statistik */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-        <StatCard icon={FileText} label="Jumlah Permohonan" value={String(summary.total)} sub="mengikut penapisan semasa" iconCls="bg-blue-50 text-blue-600" />
-        <StatCard icon={CheckCircle2} label="Lulus Sepenuhnya" value={String(summary.approvedCount)} sub={`kadar kelulusan ${summary.approvalRate}%`} iconCls="bg-emerald-50 text-emerald-600" />
-        <StatCard icon={Users2} label="Jumlah Peserta" value={summary.participants.toLocaleString('ms-MY')} sub="daripada laporan disahkan" iconCls="bg-violet-50 text-violet-600" />
-        <StatCard icon={Wallet} label="Bajet Diluluskan" value={`RM${Math.round(summary.budgetApproved).toLocaleString('ms-MY')}`} sub="jumlah kelulusan TNC HEPA" iconCls="bg-amber-50 text-amber-600" />
-        <StatCard icon={Coins} label="Bajet Digunakan" value={`RM${Math.round(summary.budgetUsed).toLocaleString('ms-MY')}`} sub="perbelanjaan disahkan" iconCls="bg-cyan-50 text-cyan-600" />
+        <StatCard
+          icon={FileText}
+          label="Jumlah Permohonan"
+          value={String(summary.total)}
+          sub="mengikut penapisan semasa"
+          iconCls="bg-blue-50 text-blue-600"
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label="Lulus Sepenuhnya"
+          value={String(summary.approvedCount)}
+          sub={`kadar kelulusan ${summary.approvalRate}%`}
+          iconCls="bg-emerald-50 text-emerald-600"
+        />
+        <StatCard
+          icon={Users2}
+          label="Jumlah Peserta"
+          value={summary.participants.toLocaleString('ms-MY')}
+          sub="daripada laporan disahkan"
+          iconCls="bg-violet-50 text-violet-600"
+        />
+        <StatCard
+          icon={Wallet}
+          label="Bajet Diluluskan"
+          value={`RM${Math.round(summary.budgetApproved).toLocaleString('ms-MY')}`}
+          sub="jumlah kelulusan TNC HEPA"
+          iconCls="bg-amber-50 text-amber-600"
+        />
+        <StatCard
+          icon={Coins}
+          label="Bajet Digunakan"
+          value={`RM${Math.round(summary.budgetUsed).toLocaleString('ms-MY')}`}
+          sub="perbelanjaan disahkan"
+          iconCls="bg-cyan-50 text-cyan-600"
+        />
       </div>
 
       {/* Sorotan keputusan — apa yang perlu DIBUAT, bukan sekadar apa yang berlaku */}
@@ -527,8 +590,8 @@ export default function DataAnalyticsModule() {
                   s.tone === 'positive'
                     ? 'bg-emerald-50/60 border-emerald-100'
                     : s.tone === 'warning'
-                    ? 'bg-amber-50/60 border-amber-100'
-                    : 'bg-slate-50 border-slate-200'
+                      ? 'bg-amber-50/60 border-amber-100'
+                      : 'bg-slate-50 border-slate-200'
                 }`}
               >
                 <p className="text-sm font-bold text-slate-900 flex items-start gap-1.5">
@@ -554,13 +617,21 @@ export default function DataAnalyticsModule() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Donut: taburan teras */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 className="font-display text-lg font-bold text-slate-900 mb-1">Aktiviti Mengikut Teras</h3>
-          <p className="text-xs text-slate-400 mb-4">Bilangan permohonan mengikut kategori 8 Teras.</p>
+          <h3 className="font-display text-lg font-bold text-slate-900 mb-1">
+            Aktiviti Mengikut Teras
+          </h3>
+          <p className="text-xs text-slate-400 mb-4">
+            Bilangan permohonan mengikut kategori 8 Teras.
+          </p>
           {!hasData ? (
             <EmptyChart />
           ) : (
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="relative h-56 w-56 shrink-0" role="img" aria-label={`Taburan ${summary.total} aktiviti mengikut teras`}>
+              <div
+                className="relative h-56 w-56 shrink-0"
+                role="img"
+                aria-label={`Taburan ${summary.total} aktiviti mengikut teras`}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -576,11 +647,13 @@ export default function DataAnalyticsModule() {
                         <Cell key={d.name} fill={d.hex} stroke="#ffffff" strokeWidth={2} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number, name: string) => [`${v} aktiviti`, name]} />
+                    <Tooltip formatter={(v, name) => [`${Number(v)} aktiviti`, String(name)]} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-2xl font-bold font-display tabular-nums text-slate-900">{summary.total}</span>
+                  <span className="text-2xl font-bold font-display tabular-nums text-slate-900">
+                    {summary.total}
+                  </span>
                   <span className="text-[10px] text-slate-400 font-medium">Aktiviti</span>
                 </div>
               </div>
@@ -588,7 +661,10 @@ export default function DataAnalyticsModule() {
                 {donutData.map((d) => (
                   <div key={d.name} className="flex items-center justify-between text-xs gap-2">
                     <span className="inline-flex items-center gap-1.5 text-slate-600 min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.hex }} />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: d.hex }}
+                      />
                       <span className="truncate">{d.name}</span>
                     </span>
                     <span className="tabular-nums font-semibold text-slate-900 shrink-0">
@@ -603,16 +679,30 @@ export default function DataAnalyticsModule() {
 
         {/* Bar bertindan: suku tahun */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 className="font-display text-lg font-bold text-slate-900 mb-1">Aktiviti Mengikut Suku Tahun</h3>
-          <p className="text-xs text-slate-400 mb-4">Bertindan mengikut teras — warna sama seperti carta taburan.</p>
+          <h3 className="font-display text-lg font-bold text-slate-900 mb-1">
+            Aktiviti Mengikut Suku Tahun
+          </h3>
+          <p className="text-xs text-slate-400 mb-4">
+            Bertindan mengikut teras — warna sama seperti carta taburan.
+          </p>
           {!hasData ? (
             <EmptyChart />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={quarterData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <YAxis axisLine={false} tickLine={false} allowDecimals={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: '#94a3b8' }}
+                />
                 <Tooltip cursor={{ fill: '#f8fafc' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
                 {activeCategories.map((cat) => (
@@ -638,8 +728,8 @@ export default function DataAnalyticsModule() {
           Prestasi Mengikut Teras (Data Keputusan)
         </h3>
         <p className="text-xs text-slate-400 mb-4">
-          Bandingkan pelaburan dan pulangan setiap teras untuk memutuskan keutamaan peruntukan.
-          Kos seorang peserta = perbelanjaan disahkan ÷ jumlah peserta.
+          Bandingkan pelaburan dan pulangan setiap teras untuk memutuskan keutamaan peruntukan. Kos
+          seorang peserta = perbelanjaan disahkan ÷ jumlah peserta.
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -655,19 +745,37 @@ export default function DataAnalyticsModule() {
             </thead>
             <tbody>
               {terasDecision.rows.map((r) => (
-                <tr key={r.cat} className={`border-b border-slate-100 hover:bg-slate-50/60 transition-colors ${r.total === 0 ? 'opacity-50' : ''}`}>
+                <tr
+                  key={r.cat}
+                  className={`border-b border-slate-100 hover:bg-slate-50/60 transition-colors ${r.total === 0 ? 'opacity-50' : ''}`}
+                >
                   <td className="py-2.5 pr-3 font-medium text-slate-900">
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: catColor(r.cat) }} />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: catColor(r.cat) }}
+                      />
                       {r.cat}
                     </span>
                   </td>
                   <td className="py-2.5 px-2 text-right tabular-nums">{r.total}</td>
                   <td className="py-2.5 px-2 text-right tabular-nums">
-                    {r.approvalRate === null ? <span className="text-slate-300">—</span> : `${r.approvalRate}%`}
+                    {r.approvalRate === null ? (
+                      <span className="text-slate-300">—</span>
+                    ) : (
+                      `${r.approvalRate}%`
+                    )}
                   </td>
-                  <td className="py-2.5 px-2 text-right tabular-nums">{r.participants.toLocaleString('ms-MY')}</td>
-                  <td className="py-2.5 px-2 text-right tabular-nums">{r.used > 0 ? Math.round(r.used).toLocaleString('ms-MY') : <span className="text-slate-300">—</span>}</td>
+                  <td className="py-2.5 px-2 text-right tabular-nums">
+                    {r.participants.toLocaleString('ms-MY')}
+                  </td>
+                  <td className="py-2.5 px-2 text-right tabular-nums">
+                    {r.used > 0 ? (
+                      Math.round(r.used).toLocaleString('ms-MY')
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
                   <td className="py-2.5 pl-2 text-right">
                     {r.costPerParticipant === null ? (
                       <span className="text-slate-300">—</span>
@@ -676,10 +784,14 @@ export default function DataAnalyticsModule() {
                         <span className="hidden sm:block w-20 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                           <span
                             className="block h-full rounded-full bg-blue-500"
-                            style={{ width: `${terasDecision.maxCost ? Math.max(6, (r.costPerParticipant / terasDecision.maxCost) * 100) : 0}%` }}
+                            style={{
+                              width: `${terasDecision.maxCost ? Math.max(6, (r.costPerParticipant / terasDecision.maxCost) * 100) : 0}%`,
+                            }}
                           />
                         </span>
-                        <span className="tabular-nums font-semibold text-slate-900">{r.costPerParticipant.toFixed(2)}</span>
+                        <span className="tabular-nums font-semibold text-slate-900">
+                          {r.costPerParticipant.toFixed(2)}
+                        </span>
                       </span>
                     )}
                   </td>
@@ -706,7 +818,10 @@ export default function DataAnalyticsModule() {
                 {categories.map((cat) => (
                   <th key={cat} className="py-2.5 px-2 font-semibold text-right">
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: catColor(cat) }} />
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: catColor(cat) }}
+                      />
                       {cat}
                     </span>
                   </th>
@@ -716,10 +831,16 @@ export default function DataAnalyticsModule() {
             </thead>
             <tbody>
               {participantMatrix.rows.map((row) => (
-                <tr key={String(row.peringkat)} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
+                <tr
+                  key={String(row.peringkat)}
+                  className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors"
+                >
                   <td className="py-2.5 pr-3 font-medium text-slate-900">{row.peringkat}</td>
                   {categories.map((cat) => (
-                    <td key={cat} className={`py-2.5 px-2 text-right tabular-nums ${(row[cat] as number) > 0 ? 'text-slate-900' : 'text-slate-300'}`}>
+                    <td
+                      key={cat}
+                      className={`py-2.5 px-2 text-right tabular-nums ${(row[cat] as number) > 0 ? 'text-slate-900' : 'text-slate-300'}`}
+                    >
                       {(row[cat] as number).toLocaleString('ms-MY')}
                     </td>
                   ))}
@@ -753,8 +874,9 @@ export default function DataAnalyticsModule() {
             Penggunaan Peruntukan Mengikut Semester
           </h3>
           <p className="text-xs text-slate-400 mb-4">
-            Peruntukan RM{SEMESTER_ALLOCATION.toLocaleString('ms-MY')} setiap semester (tidak terkesan oleh penapisan).
-            Diluluskan = kelulusan TNC HEPA · Digunakan = perbelanjaan pada laporan disahkan.
+            Peruntukan RM{SEMESTER_ALLOCATION.toLocaleString('ms-MY')} setiap semester (tidak
+            terkesan oleh penapisan). Diluluskan = kelulusan TNC HEPA · Digunakan = perbelanjaan
+            pada laporan disahkan.
           </p>
           {semesterBudgetData.length === 0 ? (
             <EmptyChart label="Tiada data kewangan lagi." />
@@ -762,12 +884,39 @@ export default function DataAnalyticsModule() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={semesterBudgetData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={fmtRMShort} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(v: number) => `RM ${fmtRM(v)}`} />
-                <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                <Bar name="Kewangan Diluluskan" dataKey="approved" fill={APPROVED_COLOR} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                <Bar name="Kewangan Digunakan" dataKey="used" fill={USED_COLOR} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={fmtRMShort}
+                  tick={{ fontSize: 11, fill: '#94a3b8' }}
+                />
+                <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(v) => `RM ${fmtRM(Number(v))}`} />
+                <Legend
+                  verticalAlign="top"
+                  align="right"
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 12 }}
+                />
+                <Bar
+                  name="Kewangan Diluluskan"
+                  dataKey="approved"
+                  fill={APPROVED_COLOR}
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  name="Kewangan Digunakan"
+                  dataKey="used"
+                  fill={USED_COLOR}
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -776,7 +925,9 @@ export default function DataAnalyticsModule() {
         {/* Laporan kewangan keseluruhan */}
         {semesterBudgetData.length > 0 && (
           <div className="border-t border-slate-100 pt-6">
-            <h4 className="font-display text-base font-bold text-slate-900 mb-4">Laporan Kewangan Keseluruhan</h4>
+            <h4 className="font-display text-base font-bold text-slate-900 mb-4">
+              Laporan Kewangan Keseluruhan
+            </h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -792,12 +943,23 @@ export default function DataAnalyticsModule() {
                   {semesterBudgetData.map((row) => {
                     const baki = SEMESTER_ALLOCATION - row.approved;
                     return (
-                      <tr key={row.name} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
+                      <tr
+                        key={row.name}
+                        className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors"
+                      >
                         <td className="py-2.5 pr-3 font-medium text-slate-900">{row.name}</td>
-                        <td className="py-2.5 px-2 text-right tabular-nums text-slate-600">{fmtRM(SEMESTER_ALLOCATION)}</td>
-                        <td className="py-2.5 px-2 text-right tabular-nums text-blue-700">{fmtRM(row.approved)}</td>
-                        <td className="py-2.5 px-2 text-right tabular-nums text-emerald-700">{fmtRM(row.used)}</td>
-                        <td className={`py-2.5 pl-2 text-right tabular-nums font-bold ${baki < 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                        <td className="py-2.5 px-2 text-right tabular-nums text-slate-600">
+                          {fmtRM(SEMESTER_ALLOCATION)}
+                        </td>
+                        <td className="py-2.5 px-2 text-right tabular-nums text-blue-700">
+                          {fmtRM(row.approved)}
+                        </td>
+                        <td className="py-2.5 px-2 text-right tabular-nums text-emerald-700">
+                          {fmtRM(row.used)}
+                        </td>
+                        <td
+                          className={`py-2.5 pl-2 text-right tabular-nums font-bold ${baki < 0 ? 'text-red-600' : 'text-slate-900'}`}
+                        >
                           {fmtRM(baki)}
                         </td>
                       </tr>
@@ -807,11 +969,20 @@ export default function DataAnalyticsModule() {
                 <tfoot>
                   <tr className="bg-slate-50 font-bold text-slate-900">
                     <td className="py-2.5 pr-3 rounded-l-lg">Jumlah Keseluruhan</td>
-                    <td className="py-2.5 px-2 text-right tabular-nums">{fmtRM(semesterBudgetData.length * SEMESTER_ALLOCATION)}</td>
-                    <td className="py-2.5 px-2 text-right tabular-nums text-blue-700">{fmtRM(semesterBudgetData.reduce((s, r) => s + r.approved, 0))}</td>
-                    <td className="py-2.5 px-2 text-right tabular-nums text-emerald-700">{fmtRM(semesterBudgetData.reduce((s, r) => s + r.used, 0))}</td>
+                    <td className="py-2.5 px-2 text-right tabular-nums">
+                      {fmtRM(semesterBudgetData.length * SEMESTER_ALLOCATION)}
+                    </td>
+                    <td className="py-2.5 px-2 text-right tabular-nums text-blue-700">
+                      {fmtRM(semesterBudgetData.reduce((s, r) => s + r.approved, 0))}
+                    </td>
+                    <td className="py-2.5 px-2 text-right tabular-nums text-emerald-700">
+                      {fmtRM(semesterBudgetData.reduce((s, r) => s + r.used, 0))}
+                    </td>
                     <td className="py-2.5 pl-2 text-right tabular-nums rounded-r-lg">
-                      {fmtRM(semesterBudgetData.length * SEMESTER_ALLOCATION - semesterBudgetData.reduce((s, r) => s + r.approved, 0))}
+                      {fmtRM(
+                        semesterBudgetData.length * SEMESTER_ALLOCATION -
+                          semesterBudgetData.reduce((s, r) => s + r.approved, 0),
+                      )}
                     </td>
                   </tr>
                 </tfoot>
@@ -823,7 +994,9 @@ export default function DataAnalyticsModule() {
         {/* Senarai terperinci per program */}
         {semesterBudgetData.length > 0 && (
           <div className="border-t border-slate-100 pt-6">
-            <h4 className="font-display text-base font-bold text-slate-900 mb-4">Senarai Terperinci Kewangan Program</h4>
+            <h4 className="font-display text-base font-bold text-slate-900 mb-4">
+              Senarai Terperinci Kewangan Program
+            </h4>
             <div className="space-y-6">
               {semesterBudgetData.map((semesterRow) => {
                 const semesterApps = applications.filter(
@@ -831,11 +1004,15 @@ export default function DataAnalyticsModule() {
                     app.semester &&
                     app.academicSession &&
                     `Sem ${app.semester} (${app.academicSession})` === semesterRow.name &&
-                    ((app.approvedAmount ?? 0) > 0 || (verifiedReportByApp.get(app.id)?.verifiedBudgetUsed ?? 0) > 0)
+                    ((app.approvedAmount ?? 0) > 0 ||
+                      (verifiedReportByApp.get(app.id)?.verifiedBudgetUsed ?? 0) > 0),
                 );
                 if (semesterApps.length === 0) return null;
                 return (
-                  <div key={semesterRow.name} className="rounded-xl border border-slate-200 overflow-hidden">
+                  <div
+                    key={semesterRow.name}
+                    className="rounded-xl border border-slate-200 overflow-hidden"
+                  >
                     <p className="bg-slate-50 px-4 py-2.5 font-semibold text-slate-900 text-sm border-b border-slate-200">
                       {semesterRow.name}
                     </p>
@@ -853,8 +1030,13 @@ export default function DataAnalyticsModule() {
                           const used = verifiedReportByApp.get(app.id)?.verifiedBudgetUsed ?? 0;
                           const approvedAmt = app.approvedAmount ?? 0;
                           return (
-                            <tr key={app.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition-colors">
-                              <td className="py-2.5 px-4 font-medium text-slate-900">{app.title}</td>
+                            <tr
+                              key={app.id}
+                              className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition-colors"
+                            >
+                              <td className="py-2.5 px-4 font-medium text-slate-900">
+                                {app.title}
+                              </td>
                               <td className="py-2.5 px-4 text-slate-600">
                                 {nameByUid.get(app.applicantId) ?? '—'}
                                 {app.applicantPosition ? ` (${app.applicantPosition})` : ''}
@@ -909,7 +1091,9 @@ function FilterSelect({
         className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow cursor-pointer"
       >
         {options.map((opt) => (
-          <option key={opt} value={opt}>{opt}</option>
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
         ))}
       </select>
     </div>
