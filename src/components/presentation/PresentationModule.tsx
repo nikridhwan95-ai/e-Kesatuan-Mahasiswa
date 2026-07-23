@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { UserRole, Application, PresentationSession } from '../../types';
 import PresentationSessionManager from './PresentationSessionManager';
+import FileLink from '../shared/FileLink';
 import {
   getApplications,
   getPresentationSessions,
@@ -481,12 +482,12 @@ export default function PresentationModule({
                           <p className="text-xs text-slate-500">Sila semak sebelum sesi semakan</p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => window.open(selectedApp.paperUrl, '_blank')}
+                      <FileLink
+                        stored={selectedApp.paperUrl || ''}
                         className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors"
                       >
                         Lihat Dokumen
-                      </button>
+                      </FileLink>
                     </div>
 
                     {/* Scheduling Form or Decision Panel */}

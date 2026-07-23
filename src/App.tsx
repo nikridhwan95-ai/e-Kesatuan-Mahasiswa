@@ -39,14 +39,7 @@ import TalentSearchModule from './components/bakat/TalentSearchModule';
 import StudentDirectoryModule from './components/bakat/StudentDirectoryModule';
 import ExcelImportModule from './components/import/ExcelImportModule';
 import { UserRole, User as UserType } from './types';
-import {
-  supabase,
-  toAppUser,
-  AppUser,
-  usernameToEmail,
-  PORTAL_USERNAME,
-  PORTAL_ADMIN_EMAIL,
-} from './supabase';
+import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_ADMIN_EMAIL } from './supabase';
 import {
   getUserProfile,
   createUserProfile,
@@ -97,9 +90,6 @@ export default function App() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Akaun portal kongsi (ekmupm) + akaun pemilik asal — kedua-duanya master admin.
-  const MASTER_ADMIN_EMAILS = [PORTAL_ADMIN_EMAIL, 'nikridhwan95@gmail.com'];
-
   useEffect(() => {
     // Sesi tempatan semasa (jika ada), kemudian dengar perubahan auth Supabase.
     supabase.auth.getSession().then(({ data }) => {
@@ -121,8 +111,10 @@ export default function App() {
   }, []);
 
   // Muat / cipta profil pengguna dalam jadual 'users' selepas log masuk.
+  // Peranan datang HANYA daripada baris users dalam DB (dibenih oleh
+  // supabase/schema.sql untuk akaun portal) — TIADA paksaan peranan
+  // berasaskan e-mel di sisi klien.
   const loadProfile = async (currentUser: AppUser) => {
-    const isMasterAdmin = MASTER_ADMIN_EMAILS.includes(currentUser.email);
     try {
       let data = await getUserProfile(currentUser.uid);
 
@@ -141,7 +133,7 @@ export default function App() {
             currentUser.email === PORTAL_ADMIN_EMAIL
               ? 'Urus Setia BHEP UPM'
               : currentUser.displayName || formattedName || 'New User',
-          role: isMasterAdmin ? 'admin' : 'student',
+          role: 'student',
           uid: currentUser.uid,
           createdAt: new Date().toISOString(),
         };
@@ -150,11 +142,6 @@ export default function App() {
       }
 
       if (data) {
-        // Paksa peranan master admin jika belum ditetapkan
-        if (isMasterAdmin && data.role !== 'admin') {
-          await updateUserProfile(currentUser.uid, { role: 'admin' });
-          data = { ...data, role: 'admin' as UserRole };
-        }
         setUserData(data);
         setCurrentUserRole(data.role);
       }
@@ -196,30 +183,13 @@ export default function App() {
 
     const email = usernameToEmail(loginUsername);
     try {
-      let { error } = await supabase.auth.signInWithPassword({ email, password: loginPassword });
-
-      // Akaun portal belum wujud di Supabase? Sediakan secara automatik pada
-      // log masuk pertama — hanya untuk nama pengguna portal yang sah.
-      if (error && loginUsername.trim().toLowerCase() === PORTAL_USERNAME) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password: loginPassword,
-        });
-        if (!signUpError) {
-          if (signUpData.session) {
-            error = null; // sesi terus aktif (pengesahan e-mel dimatikan)
-          } else {
-            // Pengesahan e-mel masih aktif — akaun perlu dicipta manual.
-            setLoginError(
-              'Akaun portal belum diaktifkan. Sila matikan "Confirm email" dalam Supabase Dashboard → Authentication → Sign In / Providers → Email, atau cipta pengguna ' +
-                email +
-                ' secara manual di Authentication → Users (tandakan Auto Confirm).',
-            );
-            setLoggingIn(false);
-            return;
-          }
-        }
-      }
+      // Pendaftaran awam dimatikan dalam Supabase Dashboard; akaun portal
+      // dicipta secara manual oleh pemilik (lihat README). Tiada signUp
+      // automatik di sini — ia membuka pintu pengambilalihan akaun.
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: loginPassword,
+      });
 
       if (error) {
         setLoginError('Nama pengguna atau kata laluan salah.');
@@ -271,8 +241,10 @@ export default function App() {
   const [userToRemove, setUserToRemove] = useState<{ uid: string; email: string } | null>(null);
 
   const handleRemoveRole = async (uid: string, email: string) => {
-    if (MASTER_ADMIN_EMAILS.includes(email)) {
-      showNotification('Peranan Master Admin tidak boleh dibuang.', 'error');
+    // Akaun portal kongsi dan akaun sendiri tidak boleh diturunkan taraf —
+    // menghalang penguncian keluar seluruh portal.
+    if (email === PORTAL_ADMIN_EMAIL || uid === user?.uid) {
+      showNotification('Peranan akaun ini tidak boleh dibuang.', 'error');
       return;
     }
     setUserToRemove({ uid, email });
@@ -698,7 +670,10 @@ export default function App() {
                                         : adminUser.role.replace('_', ' ')}
                                     </p>
                                   </div>
-                                  {!MASTER_ADMIN_EMAILS.includes(adminUser.email) && (
+                                  {!(
+                                    adminUser.email === PORTAL_ADMIN_EMAIL ||
+                                    adminUser.uid === user?.uid
+                                  ) && (
                                     <div className="flex items-center gap-2">
                                       {userToRemove?.uid === adminUser.uid ? (
                                         <div className="flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
@@ -937,7 +912,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {user && MASTER_ADMIN_EMAILS.includes(user.email) && (
+            {userData?.role === 'admin' && (
               <div className="flex items-center gap-2">
                 <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider hidden xs:block">
                   Uji:

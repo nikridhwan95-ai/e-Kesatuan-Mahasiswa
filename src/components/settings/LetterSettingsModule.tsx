@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, FileText, Upload, CheckCircle, XCircle } from 'lucide-react';
-import { getSetting, saveSetting, uploadFile } from '../../services/dataService';
+import { getSetting, saveSetting, uploadFile, getFileUrl } from '../../services/dataService';
 
 export default function LetterSettingsModule() {
   const [settings, setSettings] = useState({
@@ -15,6 +15,18 @@ export default function LetterSettingsModule() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  // Baldi peribadi: imej kepala surat dipaparkan melalui URL bertandatangan.
+  const [letterheadSrc, setLetterheadSrc] = useState('');
+
+  useEffect(() => {
+    if (!settings.letterheadUrl) {
+      setLetterheadSrc('');
+      return;
+    }
+    getFileUrl(settings.letterheadUrl)
+      .then(setLetterheadSrc)
+      .catch(() => setLetterheadSrc(''));
+  }, [settings.letterheadUrl]);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -94,9 +106,9 @@ export default function LetterSettingsModule() {
         </button>
 
         {/* Header */}
-        {settings.letterheadUrl ? (
+        {letterheadSrc ? (
           <div className="mb-8">
-            <img src={settings.letterheadUrl} alt="Letterhead" className="w-full object-contain" />
+            <img src={letterheadSrc} alt="Letterhead" className="w-full object-contain" />
           </div>
         ) : (
           <div className="border-b-2 border-slate-900 pb-6 mb-8 flex items-center justify-between">
@@ -241,12 +253,14 @@ export default function LetterSettingsModule() {
               <div className="flex flex-col items-center">
                 {imageFile ? (
                   <CheckCircle className="w-8 h-8 text-emerald-500 mb-2" />
-                ) : (
+                ) : letterheadSrc ? (
                   <img
-                    src={settings.letterheadUrl}
+                    src={letterheadSrc}
                     alt="Letterhead"
                     className="h-16 object-contain mb-3 border border-slate-200 bg-white p-1"
                   />
+                ) : (
+                  <FileText className="w-8 h-8 text-slate-300 mb-2" />
                 )}
                 <p className="text-sm text-emerald-700 font-medium">
                   {imageFile ? imageFile.name : 'Letterhead sedia ada'}

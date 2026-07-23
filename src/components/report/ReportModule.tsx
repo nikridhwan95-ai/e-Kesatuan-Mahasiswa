@@ -20,6 +20,7 @@ import {
   getUsers,
 } from '../../services/dataService';
 import { syncEvidenceForApplication } from '../../bakat/evidenceService';
+import FileLink from '../shared/FileLink';
 
 interface ReportModuleProps {
   currentUserRole: UserRole;
@@ -733,14 +734,12 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
                               : '-'}
                           </p>
                         </div>
-                        <a
-                          href={selectedItem.report?.reportUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                        <FileLink
+                          stored={selectedItem.report?.reportUrl || ''}
                           className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white border border-slate-200 rounded-xl text-blue-600 hover:text-blue-800 text-[10px] sm:text-sm font-bold transition-colors text-center whitespace-nowrap"
                         >
                           Lihat Fail
-                        </a>
+                        </FileLink>
                       </div>
 
                       <div className="border border-slate-200 rounded-2xl p-3 sm:p-5 flex items-center gap-3 sm:gap-5 bg-slate-50">
@@ -758,14 +757,12 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
                               : '-'}
                           </p>
                         </div>
-                        <a
-                          href={selectedItem.report?.receiptUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                        <FileLink
+                          stored={selectedItem.report?.receiptUrl || ''}
                           className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white border border-slate-200 rounded-xl text-blue-600 hover:text-blue-800 text-[10px] sm:text-sm font-bold transition-colors text-center whitespace-nowrap"
                         >
                           Lihat Fail
-                        </a>
+                        </FileLink>
                       </div>
                     </div>
 

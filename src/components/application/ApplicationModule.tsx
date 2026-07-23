@@ -29,6 +29,7 @@ import {
 } from '../../services/dataService';
 import { PresentationSession } from '../../types';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
+import FileLink from '../shared/FileLink';
 
 interface ApplicationModuleProps {
   currentUserRole: UserRole;
@@ -747,14 +748,12 @@ export default function ApplicationModule({
                       </p>
                       <p className="text-xs text-slate-500">Dokumen PDF</p>
                     </div>
-                    <a
-                      href={selectedApp.paperUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <FileLink
+                      stored={selectedApp.paperUrl}
                       className="text-blue-600 hover:text-blue-800 text-sm font-semibold mr-2"
                     >
                       Muat Turun
-                    </a>
+                    </FileLink>
 
                     {isStudent && selectedApp.status === 'Perlu Pembetulan' && (
                       <button

@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Download, ChevronLeft } from 'lucide-react';
 import { Application, User as UserType } from '../../types';
-import { getApplicationById, getUserProfile, getSetting } from '../../services/dataService';
+import {
+  getApplicationById,
+  getUserProfile,
+  getSetting,
+  getFileUrl,
+} from '../../services/dataService';
 
 interface ApprovalLetterModuleProps {
   applicationId?: string;
@@ -19,6 +24,18 @@ export default function ApprovalLetterModule({ applicationId, onBack }: Approval
     letterBody:
       'Sukacita dimaklumkan bahawa permohonan anda telah diluluskan.\n\nSila patuhi segala peraturan dan garis panduan yang telah ditetapkan oleh pihak universiti sepanjang program berlangsung.',
   });
+  // Baldi peribadi: imej kepala surat dipaparkan melalui URL bertandatangan.
+  const [letterheadSrc, setLetterheadSrc] = useState('');
+
+  useEffect(() => {
+    if (!settings.letterheadUrl) {
+      setLetterheadSrc('');
+      return;
+    }
+    getFileUrl(settings.letterheadUrl)
+      .then(setLetterheadSrc)
+      .catch(() => setLetterheadSrc(''));
+  }, [settings.letterheadUrl]);
 
   useEffect(() => {
     if (applicationId) {
@@ -124,10 +141,10 @@ export default function ApprovalLetterModule({ applicationId, onBack }: Approval
       <div className="bg-white p-6 sm:p-12 rounded-xl sm:rounded-none shadow-sm border border-slate-200 max-w-[210mm] mx-auto min-h-[297mm] relative print:shadow-none print:border-none print:p-0 overflow-x-auto">
         <div className="min-w-[600px] sm:min-w-0">
           {/* Letterhead */}
-          {settings.letterheadUrl ? (
+          {letterheadSrc ? (
             <div className="mb-8">
               <img
-                src={settings.letterheadUrl}
+                src={letterheadSrc}
                 alt="Letterhead"
                 className="w-full object-contain"
                 referrerPolicy="no-referrer"

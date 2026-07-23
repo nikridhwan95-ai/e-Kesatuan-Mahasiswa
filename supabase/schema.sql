@@ -141,14 +141,14 @@ as $$
   )
 $$;
 
+-- Peranan admin datang HANYA daripada users.role (dibenih di bahagian
+-- 'Benih data' di bawah). JANGAN tambah semakan e-mel di sini: e-mel yang
+-- dikod keras boleh didaftarkan sendiri oleh penyerang melalui API awam.
 create or replace function public.is_admin()
 returns boolean language sql stable security definer set search_path = public
 as $$
   select coalesce(
     (select role from public.users where uid = (select auth.uid())::text) = 'admin',
-    false
-  ) or coalesce(
-    (select auth.jwt() ->> 'email') in ('ekmupm@portal-bhep.upm.edu.my', 'nikridhwan95@gmail.com'),
     false
   )
 $$;
@@ -279,19 +279,53 @@ create policy evidence_delete on public.evidence for delete to authenticated
   using (public.is_admin());
 
 -- ── Storage (muat naik kertas kerja, laporan, resit, kepala surat) ─────────
+-- Baldi PERIBADI: fail mengandungi data peribadi pelajar (kertas kerja,
+-- resit kewangan) dan dicapai melalui URL bertandatangan sahaja.
+-- 'do update' menukar baldi awam sedia ada kepada peribadi apabila skrip
+-- ini dijalankan semula — itulah migrasinya.
 
 insert into storage.buckets (id, name, public)
-values ('uploads', 'uploads', true)
-on conflict (id) do nothing;
+values ('uploads', 'uploads', false)
+on conflict (id) do update set public = false;
 
+-- Baca (termasuk penjanaan URL bertandatangan) untuk sesi log masuk sahaja;
+-- kunci anon TIDAK boleh menyenarai atau membaca objek.
 drop policy if exists uploads_read on storage.objects;
-create policy uploads_read on storage.objects for select
+create policy uploads_read on storage.objects for select to authenticated
   using (bucket_id = 'uploads');
 
+-- Muat naik ke prefiks laluan yang dikenali sahaja.
 drop policy if exists uploads_insert on storage.objects;
 create policy uploads_insert on storage.objects for insert to authenticated
-  with check (bucket_id = 'uploads');
+  with check (
+    bucket_id = 'uploads'
+    and (storage.foldername(name))[1] in ('applications', 'reports', 'settings')
+  );
 
+-- Objek tidak boleh ditulis ganti (semua laluan muat naik unik dengan cap
+-- masa); polisi update lama digugurkan dan tidak diganti.
 drop policy if exists uploads_update on storage.objects;
-create policy uploads_update on storage.objects for update to authenticated
-  using (bucket_id = 'uploads');
+
+-- Padam oleh admin sahaja.
+drop policy if exists uploads_delete on storage.objects;
+create policy uploads_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'uploads' and public.is_admin());
+
+-- ── Benih data (idempotent) ─────────────────────────────────────────────────
+-- Peranan admin untuk akaun portal kongsi. PRASYARAT: akaun auth
+-- 'ekmupm@portal-bhep.upm.edu.my' mesti wujud dahulu (Dashboard →
+-- Authentication → Users → Add user + Auto Confirm). Jika skrip ini
+-- dijalankan sebelum akaun itu wujud, jalankan semula selepas menciptanya.
+
+insert into public.users (uid, email, role, name, "createdAt")
+select au.id::text, au.email, 'admin', 'Urus Setia BHEP UPM', now()::text
+from auth.users au
+where au.email = 'ekmupm@portal-bhep.upm.edu.my'
+  and not exists (select 1 from public.users u where u.uid = au.id::text);
+
+update public.users u
+set role = 'admin'
+from auth.users au
+where u.uid = au.id::text
+  and au.email = 'ekmupm@portal-bhep.upm.edu.my'
+  and u.role <> 'admin';

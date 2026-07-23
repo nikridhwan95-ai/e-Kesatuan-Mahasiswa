@@ -226,18 +226,41 @@ export const updateReportStatus = async (
   if (error) fail('updateReportStatus', error);
 };
 
-// ── Muat Naik Fail (Supabase Storage, baldi 'uploads') ─────────────────────
+// ── Muat Naik Fail (Supabase Storage, baldi 'uploads' — PERIBADI) ──────────
+// Baldi adalah peribadi: nilai yang disimpan dalam DB ialah LALUAN storan,
+// dan capaian dibuat melalui URL bertandatangan (getFileUrl). Rekod lama
+// mungkin masih menyimpan URL awam penuh — getFileUrl menyokong kedua-duanya.
 
 export const uploadFile = async (path: string, file: File): Promise<string> => {
-  const { error } = await supabase.storage.from('uploads').upload(path, file, { upsert: true });
+  const { error } = await supabase.storage.from('uploads').upload(path, file);
   if (error) {
     console.error('Error uploading file:', error);
     throw new Error(
       'Ralat Storage: Sila pastikan baldi "uploads" wujud di Supabase (jalankan supabase/schema.sql).',
     );
   }
-  const { data } = supabase.storage.from('uploads').getPublicUrl(path);
-  return data.publicUrl;
+  return path;
+};
+
+// Tempoh sah URL bertandatangan (saat).
+const SIGNED_URL_TTL = 3600;
+
+// Terima laluan storan ATAU URL awam lama; pulangkan URL bertandatangan
+// yang boleh dibuka dalam pelayar.
+export const getFileUrl = async (stored: string): Promise<string> => {
+  if (!stored) throw new Error('getFileUrl: tiada laluan fail');
+  let path = stored;
+  if (/^https?:\/\//.test(stored)) {
+    const marker = '/object/public/uploads/';
+    const idx = stored.indexOf(marker);
+    if (idx === -1) return stored; // URL luaran — pulangkan seadanya
+    path = decodeURIComponent(stored.slice(idx + marker.length).split('?')[0]);
+  }
+  const { data, error } = await supabase.storage
+    .from('uploads')
+    .createSignedUrl(path, SIGNED_URL_TTL);
+  if (error || !data?.signedUrl) fail('getFileUrl', error ?? { message: 'URL tidak dijana' });
+  return data.signedUrl;
 };
 
 // ── Tetapan (jadual settings: id → data jsonb) ─────────────────────────────

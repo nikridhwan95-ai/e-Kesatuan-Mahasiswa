@@ -3,6 +3,7 @@ import { Search, Filter, ArrowUpDown, FileText, Eye, CheckCircle, AlertCircle } 
 import { Application, UserRole, ApplicationStatus } from '../../types';
 import ApprovalWorkflow from '../approval/ApprovalWorkflow';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
+import FileLink from '../shared/FileLink';
 import { getApplications, updateApplicationStatus, getUsers } from '../../services/dataService';
 
 interface ReviewModuleProps {
@@ -369,14 +370,12 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
             <p className="text-slate-700 mt-1 leading-relaxed text-sm">{selectedApp.objective}</p>
           </div>
           <div className="col-span-2 flex gap-4 mt-2">
-            <a
-              href={selectedApp.paperUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <FileLink
+              stored={selectedApp.paperUrl || ''}
               className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline font-medium text-sm bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
             >
               <FileText className="w-4 h-4" /> Lihat Kertas Kerja
-            </a>
+            </FileLink>
             {selectedApp.status === 'Lulus Sepenuhnya' && (
               <button
                 onClick={() => setShowApprovalLetter(true)}
