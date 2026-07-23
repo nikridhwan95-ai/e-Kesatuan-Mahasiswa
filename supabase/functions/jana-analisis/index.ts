@@ -23,8 +23,20 @@ const MANAGEMENT_ROLES = [
   'tnc_hepa',
 ];
 
+// Nilai header mesti ByteString (ASCII boleh cetak) — aksara halimunan atau
+// petikan condong daripada salin-tampal rahsia akan menyebabkan TypeError
+// semasa membina permintaan/respons. Sanitasi di sini menjadikannya mesej
+// ralat yang jelas, bukan kegagalan kabur.
+function cleanAscii(v: string | undefined): string {
+  return (v ?? '').trim();
+}
+function isPrintableAscii(v: string): boolean {
+  return /^[\x21-\x7e]+$/.test(v);
+}
+
+const rawOrigin = cleanAscii(Deno.env.get('ALLOWED_ORIGIN'));
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
+  'Access-Control-Allow-Origin': rawOrigin && isPrintableAscii(rawOrigin) ? rawOrigin : '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -134,8 +146,15 @@ Deno.serve(async (req) => {
   const built = buildPrompt(String(body.jenis ?? ''), body.data ?? {});
   if (!built) return json(400, { error: 'jenis tidak sah' });
 
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
+  const apiKey = cleanAscii(Deno.env.get('GEMINI_API_KEY'));
   if (!apiKey) return json(502, { error: 'GEMINI_API_KEY belum ditetapkan pada fungsi' });
+  if (!isPrintableAscii(apiKey)) {
+    console.error('GEMINI_API_KEY mengandungi aksara bukan-ASCII (salin-tampal rosak?)');
+    return json(502, {
+      error:
+        'GEMINI_API_KEY mengandungi aksara tidak sah — tetapkan semula rahsia dengan nilai kunci yang bersih (tanpa petikan condong atau aksara halimunan).',
+    });
+  }
 
   try {
     const geminiRes = await fetch(
