@@ -16,27 +16,28 @@ Pelajar (BHEP) UPM yang menggabungkan DUA sistem yang saling berkait:
    pelajar berasaskan **bukti** (evidence-first).
 
 - **Repo:** `nikridhwan95-ai/e-Kesatuan-Mahasiswa`
-- **Branch kerja semasa:** `claude/init-v6w4pq` (audit penuh + remediasi
-  8 fasa; semuanya di-push; belum digabung ke `main`)
+- **Status branch:** audit penuh + remediasi 8 fasa (branch
+  `claude/init-v6w4pq`) telah DIGABUNG ke `main` melalui PR #7; kerja
+  baharu dibuat pada branch `claude/*` baharu daripada `main`
 - **Bahasa UI:** Bahasa Melayu Malaysia piawaian DBP (lihat §7)
 - Seni bina terperinci: `docs/SCHEMA.md` (telah ditulis semula — kini tepat)
 
-## 2. Audit penuh + remediasi (branch ini)
+## 2. Audit penuh + remediasi (kini dalam `main`)
 
 Audit tiga dimensi (keselamatan/backend, frontend, enjin/peralatan)
 menemui ~45 isu; kesemuanya ditangani dalam 8 fasa (satu siri komit per
 fasa — lihat `git log` untuk butiran):
 
-| Fasa | Ringkasan |
-|---|---|
-| 1 | Kod mati dibuang (types/index.ts lama, FacultyCollegeSettings, summarizer AI mati, peranan 'advisor' tidak sah); 5 kebergantungan tidak digunakan dibuang; @types/react + TypeScript **strict** (hijau); ESLint + Prettier; **CI GitHub Actions** |
-| 2 | **is_admin() tidak lagi mempercayai e-mel dikod keras** (vektor rampasan admin ditutup); peranan dibenih dari DB; **baldi Storage kini PERIBADI** dengan URL bertandatangan (PII pelajar tidak lagi terdedah awam); signUp automatik dibuang |
-| 3 | Trigger integriti DB (anti-pemalsuan medan/status, INSERT tanpa kelulusan kendiri, bukti tidak boleh ubah); kunci asing NOT VALID+VALIDATE; kekangan CHECK/UNIQUE; senarai putih medan klien; unjuran lajur (senarai pengguna tanpa telefon/alamat); pembersihan yatim semasa padam |
-| 4 | **Kunci Gemini dialihkan ke Fungsi Edge `jana-analisis`** (JWT + semakan peranan, prompt sisi pelayan) — kunci tidak lagi dibina ke dalam bundle awam |
-| 5 | Enjin tahan input rosak (NaN decay/attendance → neutral 1, klamp points 0–10); **overallScore = purata bukan-sifar top-3** (1 kompetensi @90 → 90, bukan 30 — perubahan paparan!); asOf boleh disuntik; import selamat-gagal (perancang tulen importPlan.ts, padam-semula pada kegagalan laporan, butang **Pulihkan Import**); **check:bakat 53 → 87 semakan** |
-| 6 | Pepijat sebenar dibaiki: tarikh semakan yang dipilih pentadbir kini DISIMPAN; garis masa tarikh rekaan "10–16 Okt" → cap masa sebenar; surat rasmi mencetak tempat sebenar; medan Tarikh Tamat baharu; ToastProvider/ConfirmDialog/ErrorBoundary berkongsi; semua alert/confirm/prompt asli dibuang; keadaan ralat 'Cuba Semula' |
-| 7 | ApplicationModule 1797 baris → 5 komponen; Tetapan Sistem diekstrak dari App.tsx (841 → ~580 baris); StatusBadge berkongsi (6 pelaksanaan → 1); constants.ts (peruntukan + palet CVD-safe); UI palsu dibuang (penomboran mati, butang tanpa fungsi); penapis carian/status diwayarkan |
-| 8 | React.lazy semua tab + manualChunks + xlsx dinamik: **bundle awal 1,855 KB → 218 KB** (recharts/xlsx dimuat atas permintaan); cache TTL ringan (getUsers ×7 pendua dihapuskan); favicon + meta; dokumentasi ditulis semula |
+| Fasa | Ringkasan                                                                                                                                                                                                                                                                                                                                                      |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Kod mati dibuang (types/index.ts lama, FacultyCollegeSettings, summarizer AI mati, peranan 'advisor' tidak sah); 5 kebergantungan tidak digunakan dibuang; @types/react + TypeScript **strict** (hijau); ESLint + Prettier; **CI GitHub Actions**                                                                                                              |
+| 2    | **is_admin() tidak lagi mempercayai e-mel dikod keras** (vektor rampasan admin ditutup); peranan dibenih dari DB; **baldi Storage kini PERIBADI** dengan URL bertandatangan (PII pelajar tidak lagi terdedah awam); signUp automatik dibuang                                                                                                                   |
+| 3    | Trigger integriti DB (anti-pemalsuan medan/status, INSERT tanpa kelulusan kendiri, bukti tidak boleh ubah); kunci asing NOT VALID+VALIDATE; kekangan CHECK/UNIQUE; senarai putih medan klien; unjuran lajur (senarai pengguna tanpa telefon/alamat); pembersihan yatim semasa padam                                                                            |
+| 4    | **Kunci Gemini dialihkan ke Fungsi Edge `jana-analisis`** (JWT + semakan peranan, prompt sisi pelayan) — kunci tidak lagi dibina ke dalam bundle awam                                                                                                                                                                                                          |
+| 5    | Enjin tahan input rosak (NaN decay/attendance → neutral 1, klamp points 0–10); **overallScore = purata bukan-sifar top-3** (1 kompetensi @90 → 90, bukan 30 — perubahan paparan!); asOf boleh disuntik; import selamat-gagal (perancang tulen importPlan.ts, padam-semula pada kegagalan laporan, butang **Pulihkan Import**); **check:bakat 53 → 87 semakan** |
+| 6    | Pepijat sebenar dibaiki: tarikh semakan yang dipilih pentadbir kini DISIMPAN; garis masa tarikh rekaan "10–16 Okt" → cap masa sebenar; surat rasmi mencetak tempat sebenar; medan Tarikh Tamat baharu; ToastProvider/ConfirmDialog/ErrorBoundary berkongsi; semua alert/confirm/prompt asli dibuang; keadaan ralat 'Cuba Semula'                               |
+| 7    | ApplicationModule 1797 baris → 5 komponen; Tetapan Sistem diekstrak dari App.tsx (841 → ~580 baris); StatusBadge berkongsi (6 pelaksanaan → 1); constants.ts (peruntukan + palet CVD-safe); UI palsu dibuang (penomboran mati, butang tanpa fungsi); penapis carian/status diwayarkan                                                                          |
+| 8    | React.lazy semua tab + manualChunks + xlsx dinamik: **bundle awal 1,855 KB → 218 KB** (recharts/xlsx dimuat atas permintaan); cache TTL ringan (getUsers ×7 pendua dihapuskan); favicon + meta; dokumentasi ditulis semula                                                                                                                                     |
 
 ## 3. Konsep teras (JANGAN langgar)
 
@@ -116,7 +117,7 @@ Kemas kini mock itu dahulu jika verifikasi visual penuh diperlukan.
    mesti menolak); klik kedua-dua butang 'Jana Analisis AI'.
 7. **Ujian hujung-ke-hujung penuh** (permohonan → kelulusan → laporan →
    bukti) — belum pernah diuji terhadap Supabase sebenar dari sandbox.
-8. **Gabung ke `main` / buat PR** — tunggu arahan pemilik.
+8. **Gabung ke `main`** — SELESAI (PR #7 digabung pada 2026-07-23).
 9. **Deploy** (Netlify/Vercel — app Vite statik).
 
 ## 7. Piawaian bahasa (DBP) — kekalkan
