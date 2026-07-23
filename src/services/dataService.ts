@@ -14,8 +14,9 @@ function fail(context: string, error: { message: string } | null): never {
 const USER_LIST_COLUMNS =
   'uid,email,role,name,displayName,photoURL,matricNumber,faculty,college,studyYear,programme';
 
-// Lajur legasi seperti "aiSummary" sengaja dikecualikan.
-const APPLICATION_COLUMNS =
+// Lajur legasi seperti "aiSummary" sengaja dikecualikan. (Dieksport untuk
+// kegunaan importService — kontrak lajur yang sama.)
+export const APPLICATION_COLUMNS =
   'id,applicantId,applicantPosition,title,startDate,endDate,status,budget,category,organizingLevel,jointlyOrganizedWith,softSkills,objective,academicSession,semester,venue,speaker,paperUrl,presentationSessionId,presentationDate,presentationRoom,reviewerComment,approvedAmount,createdAt,updatedAt';
 
 const REPORT_COLUMNS =

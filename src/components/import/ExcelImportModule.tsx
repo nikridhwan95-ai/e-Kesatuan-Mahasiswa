@@ -27,6 +27,7 @@ import {
   StudentImportResultRow,
   importProgrammes,
   importStudents,
+  reconcileImportOrphans,
 } from '../../services/importService';
 
 type Mode = 'program' | 'pelajar';
@@ -47,7 +48,34 @@ export default function ExcelImportModule() {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [programmeResults, setProgrammeResults] = useState<ImportResultRow[]>([]);
   const [studentResults, setStudentResults] = useState<StudentImportResultRow[]>([]);
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileMsg, setReconcileMsg] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pulihkan baris import yang yatim (permohonan import tanpa laporan —
+  // akibat kegagalan separa import terdahulu): lengkapkan laporan + bukti.
+  const handleReconcile = async () => {
+    setReconciling(true);
+    setReconcileMsg('');
+    try {
+      const r = await reconcileImportOrphans();
+      if (r.checked === 0) {
+        setReconcileMsg('Tiada rekod import yatim ditemui.');
+      } else {
+        const failNote =
+          r.failures.length > 0
+            ? ` (${r.failures.length} gagal: ${r.failures[0].appId} — ${r.failures[0].message})`
+            : '';
+        setReconcileMsg(`${r.fixed} daripada ${r.checked} rekod import dipulihkan.${failNote}`);
+      }
+    } catch (err) {
+      setReconcileMsg(
+        err instanceof Error ? `Pemulihan gagal: ${err.message}` : 'Pemulihan gagal.',
+      );
+    } finally {
+      setReconciling(false);
+    }
+  };
 
   const reset = () => {
     setStage('idle');
@@ -153,12 +181,32 @@ export default function ExcelImportModule() {
             turun templat, isi dan muat naik.
           </p>
         </div>
-        <button
-          onClick={handleDownloadTemplate}
-          className="flex items-center gap-2 border border-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-semibold hover:bg-slate-50 transition-colors"
-        >
-          <Download className="w-4 h-4" /> Muat Turun Templat
-        </button>
+        <div className="flex flex-col items-stretch sm:items-end gap-2">
+          <div className="flex gap-2">
+            {mode === 'program' && (
+              <button
+                onClick={handleReconcile}
+                disabled={reconciling}
+                title="Lengkapkan semula rekod import yang tergantung (permohonan tanpa laporan)"
+                className="flex items-center gap-2 border border-amber-300 text-amber-700 px-5 py-2.5 rounded-xl font-semibold hover:bg-amber-50 transition-colors disabled:opacity-50"
+              >
+                {reconciling ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4" />
+                )}
+                Pulihkan Import
+              </button>
+            )}
+            <button
+              onClick={handleDownloadTemplate}
+              className="flex items-center gap-2 border border-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-semibold hover:bg-slate-50 transition-colors"
+            >
+              <Download className="w-4 h-4" /> Muat Turun Templat
+            </button>
+          </div>
+          {reconcileMsg && <p className="text-xs text-slate-600">{reconcileMsg}</p>}
+        </div>
       </div>
 
       {/* Pemilih jenis import */}

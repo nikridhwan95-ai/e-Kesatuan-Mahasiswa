@@ -2,6 +2,13 @@
 // Fungsi TULEN yang menterjemah fakta e-Kesatuan (permohonan yang Lulus
 // Sepenuhnya + laporan pascaprogram yang Disahkan) kepada rekod Evidence.
 //
+// LIPUTAN KOMPETENSI: pemetaan di bawah hanya mampu menjana bukti untuk
+// {LEA, PRJ, FIN, VOL, ART, SPO, ENT, RES, COM, CRT, NET, DIG}. Empat
+// kompetensi — INN, TEC, GLO, NEG — TIADA laluan derivation daripada data
+// e-Kesatuan dan hanya boleh diisi melalui bukti manual/pengesahan
+// (manual_endorsement) pada masa hadapan; paksi radar mereka kekal 0
+// sehingga itu.
+//
 // Evidence terbitan lahir dengan status 'approved' kerana fakta asalnya telah
 // melalui rantaian kelulusan penuh e-Kesatuan (Unit Semakan → Pembentangan →
 // YDP → TNC HEPA) DAN laporan pascaprogram disahkan oleh Unit Pelaporan.
@@ -63,9 +70,18 @@ export function evidenceId(appId: string, sourceType: string, competency: Compet
   return `${appId}__${sourceType}__${competency}`;
 }
 
+// Fungsi TOTAL: tidak sekali-kali melempar. Jika kedua-dua tarikh rosak,
+// pulangkan penanda epok yang deterministik — Faktor Masa akan mereputkannya
+// kepada sumbangan ~0 dan bukannya menggagalkan keseluruhan derivation.
+const EPOCH_SENTINEL = '1970-01-01T00:00:00.000Z';
+
 function toISO(date: string | undefined, fallback: string): string {
-  const d = date && !Number.isNaN(new Date(date).getTime()) ? date : fallback;
-  return new Date(d).toISOString();
+  for (const candidate of [date, fallback]) {
+    if (!candidate) continue;
+    const t = new Date(candidate).getTime();
+    if (!Number.isNaN(t)) return new Date(t).toISOString();
+  }
+  return EPOCH_SENTINEL;
 }
 
 // Terbitkan semua rekod Evidence bagi SATU program yang layak.

@@ -3,20 +3,24 @@
 // Mengesahkan IRON RULE & sifat matematik enjin tanpa kerangka ujian berat.
 
 import {
+  attendanceFactor,
   COMPETENCY_CODES,
   recalculateStudent,
+  recencyDecay,
   scoreBreakdown,
   Evidence,
 } from '../src/bakat/domain';
 import { deriveEvidence, qualifiesForEvidence, LEVEL_MAP, ROLE_MAP } from '../src/bakat/derive';
-import { bandOf, overallScore } from '../src/bakat/insights';
+import { bandOf, computeCohortStats, overallScore } from '../src/bakat/insights';
 import {
   normalizeDate,
   parseRows,
   parseStudentRows,
   dedupeKey,
+  ImportedProgramme,
 } from '../src/services/importParser';
-import { Application, Report } from '../src/types';
+import { planProgrammeImport, sessionPrefix } from '../src/services/importPlan';
+import { Application, Report, User } from '../src/types';
 
 let failures = 0;
 function assert(name: string, cond: boolean) {
@@ -451,6 +455,268 @@ console.log('\nParser Import Butiran Pelajar:');
   assert(
     'matrik berulang → amaran',
     issues.some((i) => i.severity === 'amaran' && i.message.includes('berulang')),
+  );
+}
+
+console.log('\nPengawal ketahanan enjin (input tidak sah):');
+
+// 21) Faktor decay dan kehadiran sentiasa dalam julat; input rosak → neutral 1.
+{
+  assert('decay tarikh tidak sah → faktor neutral 1', recencyDecay('bukan-tarikh', NOW) === 1);
+  assert('decay "sekarang" tidak sah → faktor neutral 1', recencyDecay(NOW, 'rosak') === 1);
+  assert('decay masa depan → 1 (tiada boost)', recencyDecay('2027-01-01T00:00:00.000Z', NOW) === 1);
+  const past = recencyDecay('2024-07-16T00:00:00.000Z', NOW);
+  assert('decay dalam julat (0,1]', past > 0 && past <= 1);
+  assert('attendanceFactor NaN → 1', attendanceFactor(NaN) === 1);
+  assert(
+    'attendanceFactor dalam julat 0.5–1',
+    attendanceFactor(0) === 0.5 && attendanceFactor(100) === 1,
+  );
+  assert(
+    'attendanceFactor diklamp luar julat',
+    attendanceFactor(-50) === 0.5 && attendanceFactor(150) === 1,
+  );
+}
+
+// 22) Satu baris bukti bertarikh rosak TIDAK meracuni skor paksi (regresi NaN).
+{
+  const rows = [
+    ev({ id: 'ok', points: 6, event_date: NOW }),
+    ev({ id: 'rosak', points: 6, event_date: 'tarikh-rosak' }),
+  ];
+  const s = scoreBreakdown('S1', 'LEA', rows, NOW).score;
+  assert('bukti bertarikh rosak tidak menghasilkan NaN', Number.isFinite(s));
+  assert('bukti bertarikh rosak menyumbang secara neutral', s === 12);
+}
+
+// 23) points diklamp pada julat terdokumen 0–10.
+{
+  const capped = scoreBreakdown(
+    'S1',
+    'LEA',
+    [ev({ id: 'x', points: 100, event_date: NOW })],
+    NOW,
+  ).score;
+  const ten = scoreBreakdown(
+    'S1',
+    'LEA',
+    [ev({ id: 'y', points: 10, event_date: NOW })],
+    NOW,
+  ).score;
+  assert('points > 10 diklamp kepada 10', capped === ten);
+  const neg = scoreBreakdown(
+    'S1',
+    'LEA',
+    [ev({ id: 'z', points: -5, event_date: NOW })],
+    NOW,
+  ).score;
+  assert('points negatif → sumbangan 0', neg === 0);
+  const nan = scoreBreakdown(
+    'S1',
+    'LEA',
+    [ev({ id: 'n', points: NaN, event_date: NOW })],
+    NOW,
+  ).score;
+  assert('points NaN → sumbangan 0', nan === 0);
+}
+
+// 24) Cap per-sumber: kumpulan yang melebihi cap diskalakan tepat kepada cap.
+{
+  // participation cap = 25; 5 × 10 mata = 50 mentah → skala 0.5 → 5.0 setiap satu.
+  const rows = Array.from({ length: 5 }, (_, i) =>
+    ev({
+      id: `p${i}`,
+      source_type: 'participation',
+      points: 10,
+      weight_factors: {},
+      event_date: NOW,
+    }),
+  );
+  const b = scoreBreakdown('S1', 'LEA', rows, NOW);
+  assert('cap per-sumber: jumlah kumpulan == cap apabila melebihi', b.score === 25);
+  assert('cap per-sumber: bendera capped benar', b.capped === true);
+  assert(
+    'identiti jumlah: skor == Σ sumbangan selepas cap',
+    b.score === Math.round(b.contributions.reduce((a, c) => a + c.effective, 0) * 10) / 10,
+  );
+}
+
+// 25) Cap keseluruhan 100 dengan skala berkadar merentas sumber.
+{
+  const rows = [
+    ...Array.from({ length: 8 }, (_, i) =>
+      ev({
+        id: `c${i}`,
+        source_type: 'committee_role',
+        points: 10,
+        weight_factors: {},
+        event_date: NOW,
+      }),
+    ),
+    ...Array.from({ length: 5 }, (_, i) =>
+      ev({
+        id: `a${i}`,
+        source_type: 'achievement',
+        points: 10,
+        weight_factors: {},
+        event_date: NOW,
+      }),
+    ),
+    ...Array.from({ length: 5 }, (_, i) =>
+      ev({
+        id: `q${i}`,
+        source_type: 'participation',
+        points: 10,
+        weight_factors: {},
+        event_date: NOW,
+      }),
+    ),
+  ];
+  const b = scoreBreakdown('S1', 'LEA', rows, NOW);
+  assert('cap keseluruhan: skor tepat 100', b.score === 100);
+  assert('cap keseluruhan: bendera capped benar', b.capped === true);
+}
+
+console.log('\nSkor keseluruhan (profil sempit) & sempadan jalur:');
+
+// 26) overallScore TIDAK memenuhkan sifar: profil sempit tidak dihukum.
+{
+  const one = [{ score: 90 }, ...Array.from({ length: 15 }, () => ({ score: 0 }))].map((s, i) => ({
+    student_id: 'S1',
+    competency_id: COMPETENCY_CODES[i],
+    score: s.score,
+    evidence_count: s.score > 0 ? 1 : 0,
+    last_evidence_at: null,
+    engine_version: 'x',
+  }));
+  assert('overallScore 1 kompetensi @90 → 90', overallScore(one) === 90);
+  const two = one.map((s, i) => (i === 1 ? { ...s, score: 80 } : s));
+  assert('overallScore 2 kompetensi (90, 80) → 85', overallScore(two) === 85);
+  assert('overallScore tiada bukti → 0', overallScore(one.map((s) => ({ ...s, score: 0 }))) === 0);
+}
+
+// 27) Sempadan atas jalur (bandOf) — nilai .9 kekal dalam jalur bawah.
+{
+  assert('89.9 → baik', bandOf(89.9) === 'baik');
+  assert('69.9 → berkembang', bandOf(69.9) === 'berkembang');
+}
+
+// 28) computeCohortStats deterministik dengan asOf tetap.
+{
+  const users: User[] = [
+    {
+      uid: 'M-A1',
+      email: 'a1@x',
+      role: 'student',
+      name: 'A',
+      createdAt: NOW,
+    },
+  ];
+  const evi = [
+    ev({ id: 'e1', student_id: 'M-A1', points: 8, event_date: '2025-01-01T00:00:00.000Z' }),
+  ];
+  const s1 = computeCohortStats(users, evi, NOW);
+  const s2 = computeCohortStats(users, evi, NOW);
+  assert(
+    'computeCohortStats deterministik dengan asOf tetap',
+    JSON.stringify(s1) === JSON.stringify(s2),
+  );
+}
+
+console.log('\nPengesahan tarikh import & perancang import:');
+
+// 29) normalizeDate menolak komponen tarikh mustahil.
+{
+  assert('normalizeDate menolak bulan > 12', normalizeDate('25/13/2026') === null);
+  assert('normalizeDate menolak hari > 31', normalizeDate('32/01/2026') === null);
+  assert('normalizeDate menolak 31 Feb (ISO)', normalizeDate('2026-02-31') === null);
+  assert('normalizeDate dd/mm ditafsir betul', normalizeDate('03/04/2026') === '2026-04-03');
+}
+
+// 30) deriveEvidence tidak melempar walaupun semua tarikh rosak (fungsi total).
+{
+  const appRosak = app({
+    startDate: 'invalid',
+    endDate: '',
+    createdAt: 'also-bad',
+    updatedAt: '',
+  });
+  let threw = false;
+  let rows: Evidence[] = [];
+  try {
+    rows = deriveEvidence(appRosak, report({ reviewedAt: 'turut-rosak' }));
+  } catch {
+    threw = true;
+  }
+  assert('deriveEvidence tidak melempar untuk tarikh rosak', !threw && rows.length > 0);
+  assert(
+    'tarikh rosak → penanda epok deterministik',
+    rows.every((r) => r.event_date === '1970-01-01T00:00:00.000Z'),
+  );
+}
+
+// 31) Perancang import: penduaan, padanan M-<matrik>, turutan ID, pelajar baharu.
+{
+  const prog = (matric: string, title: string, startDate: string): ImportedProgramme => ({
+    student: { name: 'X', matric },
+    jawatan: 'Pengarah',
+    title,
+    kategori: 'Sukan',
+    peringkat: 'Universiti',
+    startDate,
+    endDate: startDate,
+    budgetApproved: 1000,
+    budgetVerified: 900,
+    participants: 50,
+    softSkills: [],
+    objektif: '',
+  });
+
+  // Regresi pepijat kunci penduaan: permohonan sedia ada dengan pemohon
+  // M-A123 yang TIADA dalam senarai pengguna mesti tetap sepadan dengan
+  // baris Excel bermatrik A123.
+  const plan1 = planProgrammeImport(
+    [prog('A123', 'Program X', '2026-03-01')],
+    [],
+    [{ id: 'KM.25-26.001', applicantId: 'M-A123', title: 'Program X', startDate: '2026-03-01' }],
+  );
+  assert(
+    'plan import: kunci penduaan konsisten untuk uid M-<matrik>',
+    plan1[0].action === 'langkau',
+  );
+
+  // Baris kembar dalam fail yang sama → kedua dilangkau.
+  const plan2 = planProgrammeImport(
+    [prog('A200', 'Program Y', '2026-04-01'), prog('A200', 'Program Y', '2026-04-01')],
+    [],
+    [],
+  );
+  assert(
+    'plan import: baris kembar dalam fail dilangkau',
+    plan2[0].action === 'cipta' && plan2[1].action === 'langkau',
+  );
+
+  // Turutan ID menyambung daripada permohonan sedia ada dalam sesi yang sama.
+  const plan3 = planProgrammeImport(
+    [prog('A300', 'Program Z', '2026-03-01')],
+    [],
+    [{ id: 'KM.25-26.007', applicantId: 'U1', title: 'Lain', startDate: '2026-01-01' }],
+  );
+  assert('plan import: turutan ID menyambung (008)', plan3[0].appId === 'KM.25-26.008');
+  assert(
+    'plan import: awalan sesi ikut tarikh program',
+    sessionPrefix('2026-03-01') === 'KM.25-26.',
+  );
+
+  // Pelajar baharu yang sama dalam satu kelompok: cipta SEKALI sahaja.
+  const plan4 = planProgrammeImport(
+    [prog('A400', 'P1', '2026-03-01'), prog('A400', 'P2', '2026-03-02')],
+    [],
+    [],
+  );
+  assert(
+    'plan import: pelajar baharu dicipta sekali untuk kelompok',
+    plan4[0].createUser === true && plan4[1].createUser === false && plan4[0].uid === plan4[1].uid,
   );
 }
 

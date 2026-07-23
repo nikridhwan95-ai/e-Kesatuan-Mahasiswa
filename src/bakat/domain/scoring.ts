@@ -23,16 +23,20 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-// Faktor kehadiran: linear 0.5–1.0 (100% → 1.0, 0% → 0.5). Tiada data → 1.0.
+// Faktor kehadiran: linear 0.5–1.0 (100% → 1.0, 0% → 0.5).
+// Tiada data / bukan nombor → 1.0 (konvensyen: input tidak sah = neutral).
 export function attendanceFactor(pct: number | undefined): number {
-  if (pct === undefined || pct === null) return 1;
+  if (pct === undefined || pct === null || Number.isNaN(pct)) return 1;
   const clamped = Math.max(0, Math.min(100, pct));
   return 0.5 + 0.5 * (clamped / 100);
 }
 
-// Decay recency: 0.5^(bulan_lalu / half_life). Acara masa depan → tiada boost (cap 1.0).
+// Decay recency: 0.5^(bulan_lalu / half_life). Acara masa depan → tiada boost
+// (cap 1.0). Tarikh tidak sah → 1 (neutral & deterministik) — tanpa pengawal
+// ini, satu baris bukti yang rosak meracuni keseluruhan skor paksi dengan NaN.
 export function recencyDecay(eventDate: string, now: string = nowISO()): number {
   const monthsAgo = (new Date(now).getTime() - new Date(eventDate).getTime()) / MS_PER_MONTH;
+  if (!Number.isFinite(monthsAgo)) return 1;
   if (monthsAgo <= 0) return 1;
   return Math.pow(0.5, monthsAgo / RECENCY_HALF_LIFE_MONTHS);
 }
@@ -72,13 +76,16 @@ export function scoreBreakdown(
 
   const caps = TAXONOMY_BY_CODE[competency]?.weight_rules ?? {};
 
-  // 1) Sumbangan mentah per evidence.
+  // 1) Sumbangan mentah per evidence. `points` diklamp pada julat
+  // terdokumen 0–10 (types.ts) — nilai negatif/melampau/NaN dari luar
+  // enjin derivation tidak boleh memesongkan skor.
   const rows = approved.map((e) => {
     const roleMult = e.weight_factors.role ? ROLE_MULTIPLIER[e.weight_factors.role] : 1;
     const levelMult = e.weight_factors.level ? LEVEL_MULTIPLIER[e.weight_factors.level] : 1;
     const attendance = attendanceFactor(e.weight_factors.attendance_pct);
     const decay = recencyDecay(e.event_date, now);
-    const raw = e.points * roleMult * levelMult * attendance * decay;
+    const points = Number.isFinite(e.points) ? Math.max(0, Math.min(10, e.points)) : 0;
+    const raw = points * roleMult * levelMult * attendance * decay;
     return { evidence: e, roleMult, levelMult, attendance, decay, raw };
   });
 

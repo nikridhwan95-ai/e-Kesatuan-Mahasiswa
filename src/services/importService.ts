@@ -9,7 +9,15 @@ import { supabase } from '../supabase';
 import { Application, Report, User } from '../types';
 import { getCurrentAcademicSession, getCurrentSemester } from '../utils/dateUtils';
 import { syncEvidenceForApplication } from '../bakat/evidenceService';
-import { ImportedProgramme, ImportedStudent, dedupeKey, importedStudentUid } from './importParser';
+import { ImportedProgramme, ImportedStudent, importedStudentUid } from './importParser';
+import { planProgrammeImport } from './importPlan';
+import { APPLICATION_COLUMNS } from './dataService';
+
+// Penanda pada applications.reviewerComment untuk rekod yang dicipta oleh
+// import — membolehkan reconcileImportOrphans mengenal pasti baris import
+// yang kehilangan laporan (tidak dipaparkan dalam UI: panel catatan hanya
+// muncul untuk status Perlu Pembetulan/Ditolak).
+export const IMPORT_MARKER = 'Diimport daripada rekod Excel.';
 
 export interface StudentImportResultRow {
   student: ImportedStudent;
@@ -94,20 +102,13 @@ export interface ImportResultRow {
   buktiCreated: number;
 }
 
-function sessionPrefix(startDate: string): string {
-  const d = new Date(startDate);
-  const year = d.getFullYear();
-  const month = d.getMonth(); // 0-11
-  const startYear = month >= 8 ? year : year - 1;
-  return `KM.${startYear.toString().slice(-2)}-${(startYear + 1).toString().slice(-2)}.`;
-}
-
 export async function importProgrammes(
   programmes: ImportedProgramme[],
   onProgress?: (done: number, total: number) => void,
 ): Promise<ImportResultRow[]> {
   // Muat sekali: pengguna sedia ada (padanan matrik) + permohonan sedia ada
-  // (kunci penduaan + nombor turutan ID).
+  // (kunci penduaan + nombor turutan ID). Keputusan penduaan/padanan/ID
+  // dibuat oleh perancang TULEN planProgrammeImport (diuji check:bakat).
   const [usersRes, appsRes] = await Promise.all([
     supabase.from('users').select('uid, matricNumber'),
     supabase.from('applications').select('id, applicantId, title, startDate'),
@@ -115,48 +116,33 @@ export async function importProgrammes(
   if (usersRes.error) throw new Error(`Gagal memuat senarai pengguna: ${usersRes.error.message}`);
   if (appsRes.error) throw new Error(`Gagal memuat senarai permohonan: ${appsRes.error.message}`);
 
-  const uidByMatric = new Map<string, string>();
-  for (const u of (usersRes.data ?? []) as Pick<User, 'uid' | 'matricNumber'>[]) {
-    if (u.matricNumber) uidByMatric.set(u.matricNumber.toUpperCase(), u.uid);
-  }
-
-  const existingKeys = new Set<string>();
-  const seqByPrefix = new Map<string, number>();
-  const matricByUid = new Map<string, string>();
-  for (const [matric, uid] of uidByMatric) matricByUid.set(uid, matric);
-  for (const a of (appsRes.data ?? []) as Pick<
-    Application,
-    'id' | 'applicantId' | 'title' | 'startDate'
-  >[]) {
-    const matric = matricByUid.get(a.applicantId) ?? a.applicantId;
-    existingKeys.add(dedupeKey(matric, a.title ?? '', a.startDate ?? ''));
-    const m = String(a.id).match(/^(KM\.\d{2}-\d{2}\.)(\d+)$/);
-    if (m) {
-      const seq = parseInt(m[2], 10);
-      if (seq > (seqByPrefix.get(m[1]) ?? 0)) seqByPrefix.set(m[1], seq);
-    }
-  }
+  const plan = planProgrammeImport(
+    programmes,
+    (usersRes.data ?? []) as Pick<User, 'uid' | 'matricNumber'>[],
+    (appsRes.data ?? []) as Pick<Application, 'id' | 'applicantId' | 'title' | 'startDate'>[],
+  );
 
   const results: ImportResultRow[] = [];
   let done = 0;
 
-  for (const p of programmes) {
+  for (const row of plan) {
+    const p = row.programme;
     try {
-      const key = dedupeKey(p.student.matric, p.title, p.startDate);
-      if (existingKeys.has(key)) {
+      if (row.action === 'langkau') {
         results.push({
           programme: p,
           status: 'dilangkau',
-          detail: 'Program sudah wujud dalam sistem',
+          detail: row.reason ?? 'Dilangkau',
           buktiCreated: 0,
         });
         continue;
       }
 
-      // 1) Pelajar — guna sedia ada (padanan matrik) atau cipta baharu.
-      let uid = uidByMatric.get(p.student.matric);
-      if (!uid) {
-        uid = importedStudentUid(p.student.matric);
+      const uid = row.uid!;
+      const appId = row.appId!;
+
+      // 1) Pelajar — cipta baharu jika perancang menandakannya.
+      if (row.createUser) {
         const { error } = await supabase.from('users').upsert(
           {
             uid,
@@ -172,16 +158,11 @@ export async function importProgrammes(
           { onConflict: 'uid' },
         );
         if (error) throw new Error(`pelajar: ${error.message}`);
-        uidByMatric.set(p.student.matric, uid);
       }
 
-      // 2) Permohonan (Lulus Sepenuhnya) — ID mengikut sesi tarikh program.
-      const prefix = sessionPrefix(p.startDate);
-      const nextSeq = (seqByPrefix.get(prefix) ?? 0) + 1;
-      seqByPrefix.set(prefix, nextSeq);
-      const appId = `${prefix}${String(nextSeq).padStart(3, '0')}`;
+      // 2) Permohonan (Lulus Sepenuhnya) — ditanda IMPORT_MARKER supaya
+      // baris yatim (laporan gagal) boleh dikenal pasti dan dipulihkan.
       const programmeDate = new Date(p.startDate);
-
       const application: Application = {
         id: appId,
         applicantId: uid,
@@ -201,14 +182,15 @@ export async function importProgrammes(
         venue: '',
         speaker: '',
         paperUrl: '',
+        reviewerComment: IMPORT_MARKER,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       const { error: appErr } = await supabase.from('applications').insert(application);
       if (appErr) throw new Error(`permohonan: ${appErr.message}`);
-      existingKeys.add(key);
 
-      // 3) Laporan (Disahkan).
+      // 3) Laporan (Disahkan). Jika gagal: padam semula permohonan supaya
+      // baris ini boleh diimport semula (tiada yatim kekal-dilangkau).
       const report: Omit<Report, 'id'> & { id?: string } = {
         applicationId: appId,
         applicantId: uid,
@@ -218,14 +200,22 @@ export async function importProgrammes(
         participantCount: p.participants,
         submittedAt: new Date(p.endDate).toISOString(),
         reviewedAt: new Date(p.endDate).toISOString(),
-        reviewerComment: 'Diimport daripada rekod Excel.',
+        reviewerComment: IMPORT_MARKER,
       };
       const { data: reportRow, error: repErr } = await supabase
         .from('reports')
         .insert(report)
         .select('id')
         .single();
-      if (repErr) throw new Error(`laporan: ${repErr.message}`);
+      if (repErr) {
+        const { error: undoErr } = await supabase.from('applications').delete().eq('id', appId);
+        if (undoErr) {
+          throw new Error(
+            `laporan: ${repErr.message} (permohonan ${appId} tertinggal — guna 'Pulihkan Import')`,
+          );
+        }
+        throw new Error(`laporan: ${repErr.message}`);
+      }
 
       // 4) Bukti bakat — enjin derivation sebenar (idempotent).
       const buktiCreated = await syncEvidenceForApplication(application, {
@@ -248,4 +238,68 @@ export async function importProgrammes(
   }
 
   return results;
+}
+
+// ── Pemulihan yatim import ──────────────────────────────────────────────────
+// Permohonan import (IMPORT_MARKER) berstatus Lulus Sepenuhnya yang tiada
+// laporan — akibat kegagalan separa sebelum pembetulan susunan tulis —
+// dilengkapkan semula: laporan Disahkan dicipta dan bukti bakat dijana.
+
+export interface ReconcileResult {
+  checked: number;
+  fixed: number;
+  failures: { appId: string; message: string }[];
+}
+
+export async function reconcileImportOrphans(): Promise<ReconcileResult> {
+  const [appsRes, repsRes] = await Promise.all([
+    supabase
+      .from('applications')
+      .select(APPLICATION_COLUMNS)
+      .eq('status', 'Lulus Sepenuhnya')
+      .eq('reviewerComment', IMPORT_MARKER),
+    supabase.from('reports').select('applicationId'),
+  ]);
+  if (appsRes.error) throw new Error(`Gagal memuat permohonan: ${appsRes.error.message}`);
+  if (repsRes.error) throw new Error(`Gagal memuat laporan: ${repsRes.error.message}`);
+
+  const withReport = new Set((repsRes.data ?? []).map((r) => String(r.applicationId)));
+  const orphans = ((appsRes.data ?? []) as unknown as Application[]).filter(
+    (a) => !withReport.has(a.id),
+  );
+
+  const result: ReconcileResult = { checked: orphans.length, fixed: 0, failures: [] };
+
+  for (const app of orphans) {
+    try {
+      const when = new Date(app.endDate || app.startDate);
+      const budget = app.approvedAmount ?? app.budget;
+      const report: Omit<Report, 'id'> & { id?: string } = {
+        applicationId: app.id,
+        applicantId: app.applicantId,
+        status: 'Disahkan',
+        unionBudgetUsed: budget,
+        verifiedBudgetUsed: budget,
+        submittedAt: (Number.isNaN(when.getTime()) ? new Date() : when).toISOString(),
+        reviewedAt: (Number.isNaN(when.getTime()) ? new Date() : when).toISOString(),
+        reviewerComment: IMPORT_MARKER,
+      };
+      const { data: reportRow, error: repErr } = await supabase
+        .from('reports')
+        .insert(report)
+        .select('id')
+        .single();
+      if (repErr) throw new Error(repErr.message);
+
+      await syncEvidenceForApplication(app, { ...report, id: reportRow.id as string } as Report);
+      result.fixed += 1;
+    } catch (err) {
+      result.failures.push({
+        appId: app.id,
+        message: err instanceof Error ? err.message : 'Ralat tidak diketahui',
+      });
+    }
+  }
+
+  return result;
 }

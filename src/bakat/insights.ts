@@ -7,18 +7,23 @@ import {
   CompetencyCode,
   CompetencyScore,
   Evidence,
+  nowISO,
   recalculateStudent,
 } from './domain';
 
 // ── Skor keseluruhan & jalur prestasi ───────────────────────────────────────
 
-// Skor Bakat Keseluruhan = purata 3 skor kompetensi tertinggi (1 t.p.).
+// Skor Bakat Keseluruhan = purata skor BUKAN SIFAR dalam kalangan 3 skor
+// kompetensi tertinggi (1 t.p.). Kompetensi kosong TIDAK mencairkan purata:
+// pelajar dengan satu kekuatan 90 mendapat 90, bukan 30 — profil sempit
+// tetapi cemerlang tidak dihukum kerana keluasan.
 export function overallScore(scores: CompetencyScore[]): number {
   const top = [...scores]
     .map((s) => s.score)
     .sort((a, b) => b - a)
-    .slice(0, 3);
-  if (top.length === 0 || top[0] === 0) return 0;
+    .slice(0, 3)
+    .filter((s) => s > 0);
+  if (top.length === 0) return 0;
   return Math.round((top.reduce((a, b) => a + b, 0) / top.length) * 10) / 10;
 }
 
@@ -80,7 +85,13 @@ export interface CohortStats {
   competencyStats: CompetencyStat[]; // tertib bilangan pelajar menurun
 }
 
-export function computeCohortStats(users: User[], evidence: Evidence[]): CohortStats {
+// `asOf` disuntik supaya laluan tulen ini deterministik sepenuhnya (Faktor
+// Masa dikira relatif kepada satu cap masa) — lalai masa nyata untuk UI.
+export function computeCohortStats(
+  users: User[],
+  evidence: Evidence[],
+  asOf: string = nowISO(),
+): CohortStats {
   const byStudent = new Map<string, Evidence[]>();
   for (const e of evidence) {
     const arr = byStudent.get(e.student_id) ?? [];
@@ -93,7 +104,7 @@ export function computeCohortStats(users: User[], evidence: Evidence[]): CohortS
   const rows: StudentTalentRow[] = students
     .map((user) => {
       const ev = byStudent.get(user.uid) ?? [];
-      const scores = recalculateStudent(user.uid, COMPETENCY_CODES, ev);
+      const scores = recalculateStudent(user.uid, COMPETENCY_CODES, ev, asOf);
       const strengths = scores
         .filter((s) => s.score > 0)
         .sort((a, b) => b.score - a.score)
