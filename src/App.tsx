@@ -16,7 +16,6 @@ import {
   LogIn,
   ChevronDown,
   ChevronUp,
-  AlertCircle,
   BarChart2,
   Menu,
   X,

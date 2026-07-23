@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, ArrowUpDown, FileText, Eye, CheckCircle, AlertCircle } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, FileText, Eye } from 'lucide-react';
 import { Application, UserRole, ApplicationStatus } from '../../types';
 import ApprovalWorkflow from '../approval/ApprovalWorkflow';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
