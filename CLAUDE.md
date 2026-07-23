@@ -11,7 +11,7 @@ Portal Aktiviti Pelajar UPM — an integrated student-affairs portal for BHEP UP
 
 Stack: Vite + React 19 + Tailwind v4 + TypeScript (strict), backed by Supabase (Auth + Postgres + Storage + Edge Functions). All UI text, docs, and commit messages are in Bahasa Melayu (see Language section).
 
-**Read `docs/HANDOFF.md` before making changes.** It records decisions already settled with the owner (do not reopen them), the 8-phase audit remediation (merged to `main` via PR #7), pending owner-side setup, and deliberate deferrals (do not "fix" them without reading the rationale). Update it after significant work. `docs/SCHEMA.md` is the detailed architecture/schema/security reference.
+**Read `docs/HANDOFF.md` before making changes.** It records decisions already settled with the owner (do not reopen them), the 8-phase audit remediation (merged to `main` via PR #7), pending owner-side setup, and deliberate deferrals (do not "fix" them without reading the rationale). Update it after significant work. `docs/SCHEMA.md` is the detailed architecture/schema/security reference; `docs/SDD.md` is the full software design document (BM) — update it when the design changes rather than writing a new one.
 
 ## Commands
 
