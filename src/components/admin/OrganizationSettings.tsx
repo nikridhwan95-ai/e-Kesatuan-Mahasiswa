@@ -8,6 +8,8 @@ import {
   addCollege,
   deleteCollege,
 } from '../../services/dataService';
+import { useNotification } from '../shared/ToastProvider';
+import { useConfirm } from '../shared/ConfirmDialog';
 
 type SettingType = 'faculty' | 'college';
 
@@ -17,6 +19,8 @@ export default function OrganizationSettings() {
   const [newItem, setNewItem] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const { showNotification } = useNotification();
+  const confirm = useConfirm();
 
   useEffect(() => {
     fetchItems();
@@ -49,7 +53,7 @@ export default function OrganizationSettings() {
       await fetchItems();
     } catch (error) {
       console.error(`Error adding ${activeTab}:`, error);
-      alert(`Gagal menambah ${activeTab === 'faculty' ? 'fakulti' : 'kolej'}.`);
+      showNotification(`Gagal menambah ${activeTab === 'faculty' ? 'fakulti' : 'kolej'}.`, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -57,7 +61,13 @@ export default function OrganizationSettings() {
 
   const handleDeleteItem = async (item: string) => {
     const label = activeTab === 'faculty' ? 'fakulti' : 'kolej';
-    if (!confirm(`Adakah anda pasti mahu membuang ${label} "${item}"?`)) return;
+    const ok = await confirm({
+      title: `Buang ${label === 'fakulti' ? 'Fakulti' : 'Kolej'}`,
+      message: `Adakah anda pasti mahu membuang ${label} "${item}"?`,
+      confirmLabel: 'Buang',
+      tone: 'danger',
+    });
+    if (ok !== true) return;
 
     try {
       if (activeTab === 'faculty') {
@@ -68,7 +78,7 @@ export default function OrganizationSettings() {
       await fetchItems();
     } catch (error) {
       console.error(`Error deleting ${activeTab}:`, error);
-      alert(`Gagal membuang ${label}.`);
+      showNotification(`Gagal membuang ${label}.`, 'error');
     }
   };
 

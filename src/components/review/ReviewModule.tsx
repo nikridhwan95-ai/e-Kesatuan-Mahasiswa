@@ -4,7 +4,13 @@ import { Application, UserRole, ApplicationStatus } from '../../types';
 import ApprovalWorkflow from '../approval/ApprovalWorkflow';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
 import FileLink from '../shared/FileLink';
-import { getApplications, updateApplicationStatus, getUsers } from '../../services/dataService';
+import {
+  getApplications,
+  updateApplicationStatus,
+  updateApplicationPresentation,
+  getUsers,
+} from '../../services/dataService';
+import { useNotification } from '../shared/ToastProvider';
 
 interface ReviewModuleProps {
   currentUserRole: UserRole;
@@ -34,15 +40,8 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
   // Sorting
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [notification, setNotification] = useState<{
-    message: string;
-    type: 'success' | 'error';
-  } | null>(null);
-
-  const showNotification = (message: string, type: 'success' | 'error') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
+  const [fetchError, setFetchError] = useState(false);
+  const { showNotification } = useNotification();
 
   const academicSessions = generateAcademicSessions(5);
 
@@ -52,6 +51,7 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
 
   const fetchData = async () => {
     setLoading(true);
+    setFetchError(false);
     try {
       const [appsData, usersData] = await Promise.all([
         getApplications(currentUserRole, ''),
@@ -66,6 +66,7 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
       setUsersMap(uMap);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -239,12 +240,11 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
     }
   };
 
-  // TODO Fasa 6: PEPIJAT — tarikh yang dipilih pentadbir dibuang; mesti
-  // disimpan melalui updateApplicationPresentation.
-  const handleSchedulePresentation = async (id: string, _date: string) => {
-    // This is handled in PresentationModule usually, but if called here:
+  // Tarikh yang dipilih pentadbir SEKARANG disimpan (sebelum ini dibuang
+  // senyap): updateApplicationPresentation menulis tarikh + sesi + status.
+  const handleSchedulePresentation = async (id: string, date: string) => {
     try {
-      await updateApplicationStatus(id, 'Menunggu Pembentangan');
+      await updateApplicationPresentation(id, selectedApp?.presentationSessionId ?? '', date);
       showNotification(`Sesi semakan telah dijadualkan.`, 'success');
       fetchApplications();
       setSelectedApp(null);
@@ -408,6 +408,20 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
         <p className="text-sm text-slate-500 mt-1.5">{getModuleDescription()}</p>
       </div>
 
+      {fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-red-800">
+            Gagal memuatkan data. Sila semak sambungan anda.
+          </p>
+          <button
+            onClick={fetchData}
+            className="shrink-0 bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors"
+          >
+            Cuba Semula
+          </button>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center gap-2 mb-2">
@@ -553,7 +567,7 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                  <td colSpan={7} className="p-8 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center">
                       <FileText className="w-12 h-12 text-slate-300 mb-3" />
                       <p className="text-base font-medium text-slate-600">
@@ -589,23 +603,6 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
           </div>
         </div>
       </div>
-      {/* Notification Toast */}
-      {notification && (
-        <div
-          className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-top-4 duration-300 ${
-            notification.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}
-        >
-          {notification.type === 'success' ? (
-            <CheckCircle className="w-6 h-6 text-emerald-600" />
-          ) : (
-            <AlertCircle className="w-6 h-6 text-red-600" />
-          )}
-          <p className="font-bold text-sm">{notification.message}</p>
-        </div>
-      )}
     </div>
   );
 }

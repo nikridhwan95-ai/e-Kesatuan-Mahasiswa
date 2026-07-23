@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard,
   FileText,
@@ -40,6 +40,7 @@ import StudentDirectoryModule from './components/bakat/StudentDirectoryModule';
 import ExcelImportModule from './components/import/ExcelImportModule';
 import { UserRole, User as UserType } from './types';
 import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_ADMIN_EMAIL } from './supabase';
+import { useNotification } from './components/shared/ToastProvider';
 import {
   getUserProfile,
   createUserProfile,
@@ -80,15 +81,7 @@ export default function App() {
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [openAccordion, setOpenAccordion] = useState<string | null>('kategori');
 
-  const [notification, setNotification] = useState<{
-    message: string;
-    type: 'success' | 'error';
-  } | null>(null);
-
-  const showNotification = (message: string, type: 'success' | 'error') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
+  const { showNotification } = useNotification();
 
   useEffect(() => {
     // Sesi tempatan semasa (jika ada), kemudian dengar perubahan auth Supabase.
@@ -114,51 +107,54 @@ export default function App() {
   // Peranan datang HANYA daripada baris users dalam DB (dibenih oleh
   // supabase/schema.sql untuk akaun portal) — TIADA paksaan peranan
   // berasaskan e-mel di sisi klien.
-  const loadProfile = async (currentUser: AppUser) => {
-    try {
-      let data = await getUserProfile(currentUser.uid);
+  const loadProfile = useCallback(
+    async (currentUser: AppUser) => {
+      try {
+        let data = await getUserProfile(currentUser.uid);
 
-      if (!data) {
-        const emailName = currentUser.email
-          ? currentUser.email.split('@')[0].replace(/\./g, ' ').replace(/\d+/g, '').trim()
-          : 'New User';
-        const formattedName = emailName
-          .split(' ')
-          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
+        if (!data) {
+          const emailName = currentUser.email
+            ? currentUser.email.split('@')[0].replace(/\./g, ' ').replace(/\d+/g, '').trim()
+            : 'New User';
+          const formattedName = emailName
+            .split(' ')
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
 
-        const newProfile: Partial<UserType> = {
-          email: currentUser.email || '',
-          name:
-            currentUser.email === PORTAL_ADMIN_EMAIL
-              ? 'Urus Setia BHEP UPM'
-              : currentUser.displayName || formattedName || 'New User',
-          role: 'student',
-          uid: currentUser.uid,
-          createdAt: new Date().toISOString(),
-        };
-        await createUserProfile(currentUser.uid, newProfile);
-        data = await getUserProfile(currentUser.uid);
+          const newProfile: Partial<UserType> = {
+            email: currentUser.email || '',
+            name:
+              currentUser.email === PORTAL_ADMIN_EMAIL
+                ? 'Urus Setia BHEP UPM'
+                : currentUser.displayName || formattedName || 'New User',
+            role: 'student',
+            uid: currentUser.uid,
+            createdAt: new Date().toISOString(),
+          };
+          await createUserProfile(currentUser.uid, newProfile);
+          data = await getUserProfile(currentUser.uid);
+        }
+
+        if (data) {
+          setUserData(data);
+          setCurrentUserRole(data.role);
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        showNotification(
+          'Gagal memuatkan profil. Pastikan supabase/schema.sql telah dijalankan.',
+          'error',
+        );
+      } finally {
+        setLoading(false);
       }
-
-      if (data) {
-        setUserData(data);
-        setCurrentUserRole(data.role);
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-      showNotification(
-        'Gagal memuatkan profil. Pastikan supabase/schema.sql telah dijalankan.',
-        'error',
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [showNotification],
+  );
 
   useEffect(() => {
     if (user) loadProfile(user);
-  }, [user?.uid]);
+  }, [user, loadProfile]);
 
   useEffect(() => {
     if (currentUserRole === 'admin') {
@@ -344,17 +340,6 @@ export default function App() {
             </button>
           </form>
         </div>
-        {notification && (
-          <div
-            className={`fixed top-4 right-4 z-[100] max-w-md px-6 py-4 rounded-2xl shadow-2xl border text-sm font-bold ${
-              notification.type === 'success'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : 'bg-red-50 border-red-200 text-red-800'
-            }`}
-          >
-            {notification.message}
-          </div>
-        )}
       </div>
     );
   }
@@ -943,23 +928,6 @@ export default function App() {
           </div>
         </div>
       </main>
-      {/* Notification Toast */}
-      {notification && (
-        <div
-          className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-top-4 duration-300 ${
-            notification.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}
-        >
-          {notification.type === 'success' ? (
-            <CheckSquare className="w-6 h-6 text-emerald-600" />
-          ) : (
-            <AlertCircle className="w-6 h-6 text-red-600" />
-          )}
-          <p className="font-bold text-sm">{notification.message}</p>
-        </div>
-      )}
     </div>
   );
 }

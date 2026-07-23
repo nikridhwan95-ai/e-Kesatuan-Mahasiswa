@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Tag, Loader2 } from 'lucide-react';
 import { getCategories, addCategory, deleteCategory } from '../../services/dataService';
+import { useNotification } from '../shared/ToastProvider';
+import { useConfirm } from '../shared/ConfirmDialog';
 
 export default function CategorySettings() {
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const { showNotification } = useNotification();
+  const confirm = useConfirm();
 
   useEffect(() => {
     fetchCategories();
@@ -34,21 +38,27 @@ export default function CategorySettings() {
       await fetchCategories();
     } catch (error) {
       console.error('Error adding category:', error);
-      alert('Gagal menambah kategori.');
+      showNotification('Gagal menambah kategori.', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteCategory = async (category: string) => {
-    if (!confirm(`Adakah anda pasti mahu membuang kategori "${category}"?`)) return;
+    const ok = await confirm({
+      title: 'Buang Kategori',
+      message: `Adakah anda pasti mahu membuang kategori "${category}"?`,
+      confirmLabel: 'Buang',
+      tone: 'danger',
+    });
+    if (ok !== true) return;
 
     try {
       await deleteCategory(category);
       await fetchCategories();
     } catch (error) {
       console.error('Error deleting category:', error);
-      alert('Gagal membuang kategori.');
+      showNotification('Gagal membuang kategori.', 'error');
     }
   };
 

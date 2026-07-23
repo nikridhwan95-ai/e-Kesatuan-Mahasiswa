@@ -30,6 +30,9 @@ import {
 import { PresentationSession } from '../../types';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
 import FileLink from '../shared/FileLink';
+import { useNotification } from '../shared/ToastProvider';
+import { useConfirm } from '../shared/ConfirmDialog';
+import { formatTarikh, isSameOrAfter } from '../../utils/dateUtils';
 
 interface ApplicationModuleProps {
   currentUserRole: UserRole;
@@ -115,11 +118,10 @@ export default function ApplicationModule({
     message: string;
     onConfirm: () => void;
   } | null>(null);
-  const [notification, setNotification] = useState<{
-    message: string;
-    type: 'success' | 'error';
-  } | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [fetchError, setFetchError] = useState(false);
+  const { showNotification } = useNotification();
+  const confirm = useConfirm();
 
   useEffect(() => {
     fetchData();
@@ -131,6 +133,7 @@ export default function ApplicationModule({
 
   const fetchData = async () => {
     setLoading(true);
+    setFetchError(false);
     try {
       const [appsData, usersData, sessionsData] = await Promise.all([
         getApplications(currentUserRole, applicantId),
@@ -147,14 +150,10 @@ export default function ApplicationModule({
       setSessions(sessionsData);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
-  };
-
-  const showNotification = (message: string, type: 'success' | 'error') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
   };
 
   const handleDeletePaper = async () => {
@@ -255,32 +254,43 @@ export default function ApplicationModule({
     });
   };
 
-  const handleUpdateStatus = (appId: string, status: ApplicationStatus) => {
-    let comment = '';
+  const applyStatusUpdate = async (appId: string, status: ApplicationStatus, comment: string) => {
+    try {
+      await updateApplicationStatus(appId, status, comment);
+      showNotification(`Status berjaya dikemas kini kepada ${status}.`, 'success');
+      fetchApplications();
+      if (selectedApp?.id === appId) {
+        setSelectedApp({ ...selectedApp, status, reviewerComment: comment });
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      showNotification('Gagal mengemaskini status.', 'error');
+    }
+  };
+
+  const handleUpdateStatus = async (appId: string, status: ApplicationStatus) => {
     if (status === 'Perlu Pembetulan' || status === 'Ditolak') {
-      const message =
-        status === 'Perlu Pembetulan'
-          ? 'Sila nyatakan pembetulan yang diperlukan:'
-          : 'Sila nyatakan sebab permohonan ditolak:';
-      comment = prompt(message) || '';
-      if (!comment) return; // Cancel if no comment provided
+      // Dialog textarea menggantikan prompt() asli — sebab diwajibkan.
+      const reason = await confirm({
+        title: status === 'Perlu Pembetulan' ? 'Minta Pembetulan' : 'Tolak Permohonan',
+        message: `Status permohonan akan ditukar kepada "${status}".`,
+        confirmLabel: status === 'Ditolak' ? 'Tolak' : 'Hantar',
+        tone: status === 'Ditolak' ? 'danger' : 'primary',
+        textarea: {
+          label: status === 'Perlu Pembetulan' ? 'Pembetulan yang diperlukan' : 'Sebab penolakan',
+          placeholder: 'Sila nyatakan sebab...',
+        },
+      });
+      if (typeof reason !== 'string' || reason.length === 0) return;
+      await applyStatusUpdate(appId, status, reason);
+      return;
     }
 
     setConfirmModal({
       isOpen: true,
       message: `Adakah anda pasti mahu menukar status kepada ${status}?`,
       onConfirm: async () => {
-        try {
-          await updateApplicationStatus(appId, status, comment);
-          showNotification(`Status berjaya dikemas kini kepada ${status}.`, 'success');
-          fetchApplications();
-          if (selectedApp?.id === appId) {
-            setSelectedApp({ ...selectedApp, status, reviewerComment: comment });
-          }
-        } catch (error) {
-          console.error('Error updating status:', error);
-          showNotification('Gagal mengemaskini status.', 'error');
-        }
+        await applyStatusUpdate(appId, status, '');
         setConfirmModal(null);
       },
     });
@@ -321,8 +331,9 @@ export default function ApplicationModule({
     e.preventDefault();
     setLoading(true);
     const form = e.target as HTMLFormElement;
-    const submitter = (e.nativeEvent as any).submitter as HTMLButtonElement;
-    const isDraft = submitter.value === 'draf';
+    // submitter boleh null (hantar programatik / Enter) — lalai hantar penuh.
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const isDraft = submitter?.value === 'draf';
 
     if (!isDraft && isStudent) {
       const isProfileComplete =
@@ -348,6 +359,7 @@ export default function ApplicationModule({
     const academicSession = formData.get('academicSession') as string;
     const semester = formData.get('semester') as string;
     const startDate = formData.get('startDate') as string;
+    const endDate = (formData.get('endDate') as string) || startDate;
     const venue = formData.get('venue') as string;
     const speaker = formData.get('speaker') as string;
     const budget = formData.get('budget') as string;
@@ -356,6 +368,18 @@ export default function ApplicationModule({
     const jointlyOrganizedWith = formData.get('jointlyOrganizedWith') as string;
     const softSkills = Array.from(formData.getAll('softSkills')) as string[];
     const objective = formData.get('objective') as string;
+
+    if (endDate && startDate && !isSameOrAfter(endDate, startDate)) {
+      showNotification('Tarikh tamat mesti pada atau selepas tarikh mula.', 'error');
+      setLoading(false);
+      return;
+    }
+    const budgetNum = parseFloat(budget) || 0;
+    if (budgetNum < 0) {
+      showNotification('Bajet tidak boleh negatif.', 'error');
+      setLoading(false);
+      return;
+    }
 
     try {
       let paperUrl = editingApp?.paperUrl || '';
@@ -368,7 +392,7 @@ export default function ApplicationModule({
         ? {
             title,
             startDate,
-            endDate: startDate,
+            endDate,
             venue,
             speaker,
             jointlyOrganizedWith,
@@ -378,10 +402,10 @@ export default function ApplicationModule({
             applicantPosition,
             title,
             startDate,
-            endDate: startDate,
+            endDate,
             venue,
             speaker,
-            budget: parseFloat(budget),
+            budget: budgetNum,
             category: category.charAt(0).toUpperCase() + category.slice(1),
             organizingLevel,
             jointlyOrganizedWith,
@@ -427,23 +451,6 @@ export default function ApplicationModule({
 
   const overlays = (
     <>
-      {notification && (
-        <div
-          className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 transition-all transform duration-300 ${
-            notification.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-red-50 text-red-800 border border-red-200'
-          }`}
-        >
-          {notification.type === 'success' ? (
-            <CheckCircle className="w-5 h-5" />
-          ) : (
-            <AlertCircle className="w-5 h-5" />
-          )}
-          <p className="font-medium">{notification.message}</p>
-        </div>
-      )}
-
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
@@ -645,16 +652,11 @@ export default function ApplicationModule({
                     </p>
                     <p className="text-slate-900 font-medium flex items-center gap-1.5">
                       <Calendar className="w-4 h-4 text-slate-400" />
-                      {new Date(
-                        selectedApp.startDate || (selectedApp as any).date,
-                      ).toLocaleDateString('ms-MY', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+                      {formatTarikh(selectedApp.startDate)}
                       {selectedApp.startDate &&
+                        selectedApp.endDate &&
                         selectedApp.startDate !== selectedApp.endDate &&
-                        ` - ${new Date(selectedApp.endDate).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                        ` - ${formatTarikh(selectedApp.endDate)}`}
                     </p>
                   </div>
                   <div>
@@ -840,7 +842,9 @@ export default function ApplicationModule({
                     <div className="flex-1 p-4 rounded-xl border border-slate-200 bg-white shadow-sm">
                       <div className="flex items-center justify-between space-x-2 mb-1">
                         <div className="font-bold text-slate-900 text-sm">Dihantar</div>
-                        <time className="font-mono text-xs text-slate-500">10 Okt</time>
+                        <time className="font-mono text-xs text-slate-500">
+                          {formatTarikh(selectedApp.createdAt)}
+                        </time>
                       </div>
                       <div className="text-slate-500 text-xs">
                         Permohonan dihantar oleh pemohon.
@@ -876,9 +880,12 @@ export default function ApplicationModule({
                             'Menunggu Kelulusan YDP',
                             'Menunggu Kelulusan TNC HEPA',
                             'Lulus Sepenuhnya',
-                          ].includes(selectedApp.status) && (
-                            <time className="font-mono text-xs text-slate-500">14 Okt</time>
-                          )}
+                          ].includes(selectedApp.status) &&
+                            selectedApp.presentationDate && (
+                              <time className="font-mono text-xs text-slate-500">
+                                {formatTarikh(selectedApp.presentationDate)}
+                              </time>
+                            )}
                         </div>
                         <div className="text-slate-500 text-xs mb-3">
                           {[
@@ -1035,9 +1042,7 @@ export default function ApplicationModule({
                           >
                             Kelulusan YDP MPP
                           </div>
-                          {['Menunggu Kelulusan TNC HEPA', 'Lulus Sepenuhnya'].includes(
-                            selectedApp.status,
-                          ) && <time className="font-mono text-xs text-blue-600">15 Okt</time>}
+                          {/* Tiada cap masa per-langkah dalam model — tiada tarikh dipapar. */}
                         </div>
                         <div
                           className={`text-xs ${['Menunggu Kelulusan TNC HEPA', 'Lulus Sepenuhnya'].includes(selectedApp.status) ? 'text-blue-700' : 'text-slate-500'}`}
@@ -1076,7 +1081,9 @@ export default function ApplicationModule({
                             Kelulusan Akhir (TNC HEPA)
                           </div>
                           {selectedApp.status === 'Lulus Sepenuhnya' && (
-                            <time className="font-mono text-xs text-emerald-600">16 Okt</time>
+                            <time className="font-mono text-xs text-emerald-600">
+                              {formatTarikh(selectedApp.updatedAt)}
+                            </time>
                           )}
                         </div>
                         <div
@@ -1101,6 +1108,19 @@ export default function ApplicationModule({
   return (
     <div className="space-y-6">
       {overlays}
+      {fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-red-800">
+            Gagal memuatkan data. Sila semak sambungan anda.
+          </p>
+          <button
+            onClick={fetchData}
+            className="shrink-0 bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors"
+          >
+            Cuba Semula
+          </button>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 font-display tracking-tight">
@@ -1248,15 +1268,29 @@ export default function ApplicationModule({
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Tarikh Program
+                  Tarikh Mula
                 </label>
                 <input
                   type="date"
                   name="startDate"
-                  defaultValue={editingApp?.startDate || (editingApp as any)?.date}
+                  defaultValue={editingApp?.startDate}
                   className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Tarikh Tamat
+                </label>
+                <input
+                  type="date"
+                  name="endDate"
+                  defaultValue={editingApp?.endDate}
+                  className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Biarkan kosong untuk program satu hari.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -1302,6 +1336,8 @@ export default function ApplicationModule({
                 <input
                   type="number"
                   name="budget"
+                  min={0}
+                  step="0.01"
                   defaultValue={editingApp?.budget}
                   className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow disabled:bg-slate-100 disabled:text-slate-500"
                   placeholder="0.00"
@@ -1438,7 +1474,7 @@ export default function ApplicationModule({
                     const file = e.target.files?.[0];
                     if (file) {
                       if (file.size > 5 * 1024 * 1024) {
-                        alert('Saiz fail melebihi 5MB');
+                        showNotification('Saiz fail melebihi 5MB.', 'error');
                         return;
                       }
                       setPaperFile(file);
@@ -1559,13 +1595,7 @@ export default function ApplicationModule({
               <div className="grid grid-cols-2 gap-4 text-xs" onClick={() => setSelectedApp(app)}>
                 <div className="flex items-center gap-2 text-slate-500">
                   <Calendar className="w-4 h-4 text-slate-400" />
-                  <span className="font-medium">
-                    {new Date(app.startDate || (app as any).date).toLocaleDateString('ms-MY', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </span>
+                  <span className="font-medium">{formatTarikh(app.startDate)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-700 font-bold">
                   <span className="text-slate-400 font-medium">Bajet:</span>
@@ -1677,11 +1707,7 @@ export default function ApplicationModule({
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1.5 font-medium">
                       <Calendar className="w-4 h-4 text-slate-400" />
-                      {new Date(app.startDate || (app as any).date).toLocaleDateString('ms-MY', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+                      {formatTarikh(app.startDate)}
                     </div>
                   </td>
                   <td className="px-6 py-4">

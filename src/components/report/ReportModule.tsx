@@ -21,6 +21,7 @@ import {
 } from '../../services/dataService';
 import { syncEvidenceForApplication } from '../../bakat/evidenceService';
 import FileLink from '../shared/FileLink';
+import { useNotification } from '../shared/ToastProvider';
 
 interface ReportModuleProps {
   currentUserRole: UserRole;
@@ -38,18 +39,10 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
   const [applications, setApplications] = useState<Application[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, string>>({});
-  // TODO Fasa 6: paparkan keadaan pemuatan; buat masa ini hanya dijejak.
-  const [_loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [notification, setNotification] = useState<{
-    message: string;
-    type: 'success' | 'error';
-  } | null>(null);
-
-  const showNotification = (message: string, type: 'success' | 'error') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
+  const { showNotification } = useNotification();
   const [reportFile, setReportFile] = useState<File | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [unionBudgetUsed, setUnionBudgetUsed] = useState<string>('');
@@ -68,6 +61,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
 
   const fetchData = async () => {
     setLoading(true);
+    setFetchError(false);
     try {
       const [appsData, reportsData, usersData] = await Promise.all([
         getApplications(currentUserRole, applicantId),
@@ -84,6 +78,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
       setUsersMap(uMap);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -216,6 +211,8 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
 
   const selectedItem = reportList.find((item) => item.app.id === selectedAppId);
 
+  // Bergantung pada laporan yang dipilih (bukan hanya ID) supaya nilai bajet
+  // disegarkan apabila senarai laporan dimuat semula.
   useEffect(() => {
     if (selectedItem?.report) {
       setVerifiedBudget(
@@ -226,7 +223,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
     } else {
       setVerifiedBudget('');
     }
-  }, [selectedAppId]);
+  }, [selectedItem?.report]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -242,6 +239,26 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
           </p>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-red-800">
+            Gagal memuatkan data. Sila semak sambungan anda.
+          </p>
+          <button
+            onClick={fetchData}
+            className="shrink-0 bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors"
+          >
+            Cuba Semula
+          </button>
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        </div>
+      )}
 
       {!isStudent && (
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 mb-6">
@@ -530,6 +547,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
                           <input
                             type="number"
                             step="0.01"
+                            min={0}
                             required
                             value={unionBudgetUsed}
                             onChange={(e) => setUnionBudgetUsed(e.target.value)}
@@ -552,6 +570,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
                         <div className="relative">
                           <input
                             type="number"
+                            min={0}
                             required
                             value={participantCount}
                             onChange={(e) => setParticipantCount(e.target.value)}
@@ -778,6 +797,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
                           <input
                             type="number"
                             step="0.01"
+                            min={0}
                             value={verifiedBudget}
                             onChange={(e) => setVerifiedBudget(e.target.value)}
                             onWheel={(e) => (e.target as HTMLInputElement).blur()}
@@ -837,23 +857,6 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
               </div>
             )}
           </div>
-        </div>
-      )}
-      {/* Notification Toast */}
-      {notification && (
-        <div
-          className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-top-4 duration-300 ${
-            notification.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}
-        >
-          {notification.type === 'success' ? (
-            <CheckCircle className="w-6 h-6 text-emerald-600" />
-          ) : (
-            <AlertCircle className="w-6 h-6 text-red-600" />
-          )}
-          <p className="font-bold text-sm">{notification.message}</p>
         </div>
       )}
     </div>

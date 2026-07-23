@@ -22,6 +22,7 @@ import {
   updateApplicationStatus,
   deletePresentationSession,
 } from '../../services/dataService';
+import { useNotification } from '../shared/ToastProvider';
 
 interface PresentationModuleProps {
   currentUserRole: UserRole;
@@ -44,8 +45,9 @@ export default function PresentationModule({
   const [sessions, setSessions] = useState<PresentationSession[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, string>>({});
-  // TODO Fasa 6: paparkan keadaan pemuatan; buat masa ini hanya dijejak.
-  const [_loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { showNotification } = useNotification();
 
   useEffect(() => {
     fetchData();
@@ -79,9 +81,10 @@ export default function PresentationModule({
       const { id, ...sessionData } = session;
       const newId = await createPresentationSession(sessionData);
       setSessions([...sessions, { ...session, id: newId }]);
+      showNotification('Sesi berjaya ditambah.', 'success');
     } catch (error) {
       console.error('Error adding session:', error);
-      alert('Gagal menambah sesi.');
+      showNotification('Gagal menambah sesi.', 'error');
     }
   };
 
@@ -95,7 +98,7 @@ export default function PresentationModule({
       setSessions(sessions.map((s) => (s.id === id ? { ...s, status: newStatus } : s)));
     } catch (error) {
       console.error('Error updating session status:', error);
-      alert('Gagal mengemaskini status sesi.');
+      showNotification('Gagal mengemaskini status sesi.', 'error');
     }
   };
 
@@ -103,22 +106,24 @@ export default function PresentationModule({
     try {
       await deletePresentationSession(id);
       setSessions(sessions.filter((s) => s.id !== id));
+      showNotification('Sesi berjaya dipadam.', 'success');
     } catch (error) {
       console.error('Error deleting session:', error);
-      alert('Gagal memadam sesi.');
+      showNotification('Gagal memadam sesi.', 'error');
     }
   };
 
   const handleSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedApp) return;
+    if (!selectedApp || saving) return;
 
     const selectedSession = sessions.find((s) => s.id === presentationSessionId);
     if (!selectedSession) {
-      alert('Sila pilih sesi semakan.');
+      showNotification('Sila pilih sesi semakan.', 'error');
       return;
     }
 
+    setSaving(true);
     try {
       await updateApplicationPresentation(
         selectedApp.id,
@@ -146,10 +151,12 @@ export default function PresentationModule({
         presentationRoom,
         status: 'Menunggu Pembentangan',
       });
-      alert('Jadual semakan berjaya ditetapkan!');
+      showNotification('Jadual semakan berjaya ditetapkan!', 'success');
     } catch (error) {
       console.error('Error scheduling presentation:', error);
-      alert('Gagal menetapkan jadual.');
+      showNotification('Gagal menetapkan jadual.', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -157,17 +164,18 @@ export default function PresentationModule({
     decision: 'Menunggu Kelulusan YDP' | 'Perlu Pembetulan' | 'Ditolak',
   ) => {
     if (!comment.trim() && decision !== 'Menunggu Kelulusan YDP') {
-      alert('Sila masukkan komen sebelum membuat keputusan.');
+      showNotification('Sila masukkan komen sebelum membuat keputusan.', 'error');
       return;
     }
 
     if (decision === 'Menunggu Kelulusan YDP' && (approvedAmount === '' || approvedAmount < 0)) {
-      alert('Sila masukkan jumlah kewangan yang diluluskan.');
+      showNotification('Sila masukkan jumlah kewangan yang diluluskan.', 'error');
       return;
     }
 
-    if (!selectedApp) return;
+    if (!selectedApp || saving) return;
 
+    setSaving(true);
     try {
       const finalApprovedAmount =
         decision === 'Menunggu Kelulusan YDP' ? Number(approvedAmount) : undefined;
@@ -182,10 +190,12 @@ export default function PresentationModule({
       setSelectedApp(null);
       setComment('');
       setApprovedAmount('');
-      alert('Keputusan berjaya direkodkan!');
+      showNotification('Keputusan berjaya direkodkan!', 'success');
     } catch (error) {
       console.error('Error recording decision:', error);
-      alert('Gagal merekod keputusan.');
+      showNotification('Gagal merekod keputusan.', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -262,6 +272,11 @@ export default function PresentationModule({
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {loading && (
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 font-display tracking-tight">
@@ -379,7 +394,7 @@ export default function PresentationModule({
                     ))}
                     {displayApps.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="p-6 text-center text-slate-400 text-sm">
+                        <td colSpan={7} className="p-6 text-center text-slate-400 text-sm">
                           Tiada permohonan untuk semakan.
                         </td>
                       </tr>
@@ -550,9 +565,10 @@ export default function PresentationModule({
                             <div className="flex justify-end pt-2">
                               <button
                                 type="submit"
-                                className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20"
+                                disabled={saving}
+                                className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20 disabled:opacity-50"
                               >
-                                Simpan Jadual
+                                {saving ? 'Sedang Disimpan...' : 'Simpan Jadual'}
                               </button>
                             </div>
                           )}
@@ -641,21 +657,24 @@ export default function PresentationModule({
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                               <button
                                 onClick={() => handleDecision('Ditolak')}
-                                className="px-4 py-3 bg-red-50 text-red-700 border border-red-200 rounded-xl font-semibold hover:bg-red-100 transition-colors flex flex-col items-center justify-center gap-1 text-sm"
+                                disabled={saving}
+                                className="px-4 py-3 bg-red-50 text-red-700 border border-red-200 rounded-xl font-semibold hover:bg-red-100 transition-colors flex flex-col items-center justify-center gap-1 text-sm disabled:opacity-50"
                               >
                                 <XCircle className="w-5 h-5 mb-1" />
                                 Tolak (Gagal)
                               </button>
                               <button
                                 onClick={() => handleDecision('Perlu Pembetulan')}
-                                className="px-4 py-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl font-semibold hover:bg-amber-100 transition-colors flex flex-col items-center justify-center gap-1 text-sm"
+                                disabled={saving}
+                                className="px-4 py-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl font-semibold hover:bg-amber-100 transition-colors flex flex-col items-center justify-center gap-1 text-sm disabled:opacity-50"
                               >
                                 <AlertCircle className="w-5 h-5 mb-1" />
                                 Perlu Pembaikan
                               </button>
                               <button
                                 onClick={() => handleDecision('Menunggu Kelulusan YDP')}
-                                className="px-4 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/20 flex flex-col items-center justify-center gap-1 text-sm"
+                                disabled={saving}
+                                className="px-4 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/20 flex flex-col items-center justify-center gap-1 text-sm disabled:opacity-50"
                               >
                                 <CheckCircle className="w-5 h-5 mb-1" />
                                 Lulus (Ke YDP)

@@ -17,6 +17,7 @@ import {
 } from '../../services/dataService';
 import { getCurrentAppUser, AppUser } from '../../supabase';
 import { User } from '../../types';
+import { useNotification } from '../shared/ToastProvider';
 
 interface StudentProfileProps {
   userId: string;
@@ -25,14 +26,19 @@ interface StudentProfileProps {
 export default function StudentProfile({ userId }: StudentProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<User | null>(null);
   const [faculties, setFaculties] = useState<string[]>([]);
   const [colleges, setColleges] = useState<string[]>([]);
   const [authUser, setAuthUser] = useState<AppUser | null>(null);
+  const [fetchError, setFetchError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const { showNotification } = useNotification();
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setFetchError(false);
       try {
         const [userProfile, facultyList, collegeList, currentAuthUser] = await Promise.all([
           getUserProfile(userId),
@@ -90,12 +96,13 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
         setProfile(currentProfile);
       } catch (error) {
         console.error('Error fetching profile:', error);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [userId]);
+  }, [userId, reloadKey]);
 
   const handleExtractFromEmail = () => {
     if (authUser && profile) {
@@ -118,21 +125,24 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
         photoURL: authUser.photoURL || profile.photoURL,
         email: authUser.email || profile.email,
       });
-      alert('Maklumat berjaya diekstrak daripada akaun log masuk.');
+      showNotification('Maklumat berjaya diekstrak daripada akaun log masuk.', 'success');
     } else {
-      alert('Tiada maklumat pengguna ditemui.');
+      showNotification('Tiada maklumat pengguna ditemui.', 'error');
     }
   };
 
   const handleSave = async () => {
-    if (!profile) return;
+    if (!profile || saving) return;
+    setSaving(true);
     try {
       await updateUserProfile(userId, profile);
       setIsEditing(false);
-      alert('Profil berjaya dikemas kini.');
+      showNotification('Profil berjaya dikemas kini.', 'success');
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Gagal mengemaskini profil.');
+      showNotification('Gagal mengemaskini profil.', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -161,6 +171,20 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
 
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Memuatkan profil...</div>;
+  }
+
+  if (fetchError && !profile) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-600 font-medium">Gagal memuatkan profil.</p>
+        <button
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="mt-4 bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors"
+        >
+          Cuba Semula
+        </button>
+      </div>
+    );
   }
 
   if (!profile) {
@@ -216,9 +240,10 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-blue-50 transition-colors"
+                  disabled={saving}
+                  className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-blue-50 transition-colors disabled:opacity-50"
                 >
-                  <Save className="w-4 h-4" /> Simpan Profil
+                  <Save className="w-4 h-4" /> {saving ? 'Sedang Disimpan...' : 'Simpan Profil'}
                 </button>
               </>
             ) : (

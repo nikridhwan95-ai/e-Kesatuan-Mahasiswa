@@ -7,6 +7,7 @@ import {
   getSetting,
   getFileUrl,
 } from '../../services/dataService';
+import { formatTarikh } from '../../utils/dateUtils';
 
 interface ApprovalLetterModuleProps {
   applicationId?: string;
@@ -88,15 +89,15 @@ export default function ApprovalLetterModule({ applicationId, onBack }: Approval
     studentId: (applicant as any)?.matricNo || applicant?.matricNumber || '',
     programTitle: application.title,
     programDate: application.startDate
-      ? `${new Date(application.startDate).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}${application.startDate !== application.endDate ? ` - ${new Date(application.endDate).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}`
-      : (application as any).date
-        ? new Date((application as any).date).toLocaleDateString('ms-MY', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })
-        : '-',
-    programVenue: 'Universiti Putra Malaysia', // Venue should ideally be in the application model
+      ? `${formatTarikh(application.startDate, { day: 'numeric', month: 'long', year: 'numeric' })}${
+          application.endDate && application.startDate !== application.endDate
+            ? ` - ${formatTarikh(application.endDate, { day: 'numeric', month: 'long', year: 'numeric' })}`
+            : ''
+        }`
+      : '-',
+    // Tempat program diambil daripada permohonan sebenar — sebelum ini surat
+    // rasmi sentiasa mencetak tempat yang dikod keras.
+    programVenue: application.venue || 'Universiti Putra Malaysia',
     budget: `RM ${application.budget.toLocaleString()}`,
   };
 

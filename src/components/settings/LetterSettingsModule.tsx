@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Save, FileText, Upload, CheckCircle, XCircle } from 'lucide-react';
 import { getSetting, saveSetting, uploadFile, getFileUrl } from '../../services/dataService';
+import { useNotification } from '../shared/ToastProvider';
 
 export default function LetterSettingsModule() {
+  const { showNotification } = useNotification();
   const [settings, setSettings] = useState({
     organizationName: 'Majlis Perwakilan Pelajar',
     refPrefix: 'UPM/KM/2026/',
@@ -242,7 +244,7 @@ export default function LetterSettingsModule() {
                 const file = e.target.files?.[0];
                 if (file) {
                   if (file.size > 2 * 1024 * 1024) {
-                    alert('Saiz fail melebihi 2MB');
+                    showNotification('Saiz fail melebihi 2MB.', 'error');
                     return;
                   }
                   setImageFile(file);

@@ -44,6 +44,8 @@ import {
 export default function AnalyticsDashboard({ currentUserRole }: AnalyticsDashboardProps) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [selectedSemester, setSelectedSemester] = useState(getCurrentSemester());
   const [selectedAcademicSession, setSelectedAcademicSession] = useState(
     getCurrentAcademicSession(),
@@ -58,6 +60,8 @@ export default function AnalyticsDashboard({ currentUserRole }: AnalyticsDashboa
   }, [currentUserRole]);
 
   const fetchDashboardData = async () => {
+    setLoading(true);
+    setFetchError(false);
     try {
       const uid = (await getCurrentAppUser())?.uid || '';
       const [appsData, reportsData] = await Promise.all([
@@ -68,6 +72,9 @@ export default function AnalyticsDashboard({ currentUserRole }: AnalyticsDashboa
       setReports(reportsData);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      setFetchError(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -394,8 +401,29 @@ export default function AnalyticsDashboard({ currentUserRole }: AnalyticsDashboa
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8">
+      {fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-red-800">
+            Gagal memuatkan data. Sila semak sambungan anda.
+          </p>
+          <button
+            onClick={fetchDashboardData}
+            className="shrink-0 bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors"
+          >
+            Cuba Semula
+          </button>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 font-display tracking-tight">
