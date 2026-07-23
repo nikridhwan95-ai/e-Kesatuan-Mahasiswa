@@ -10,7 +10,8 @@ import {
   Users2,
   XCircle,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+// xlsx (~1 MB) dimuat secara dinamik semasa muat turun templat / baca fail —
+// ia tidak lagi berada dalam bundle awal aplikasi.
 import {
   ImportedProgramme,
   ImportedStudent,
@@ -95,7 +96,8 @@ export default function ExcelImportModule() {
     reset();
   };
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
+    const XLSX = await import('xlsx');
     const headers = mode === 'program' ? [...TEMPLATE_HEADERS] : [...STUDENT_TEMPLATE_HEADERS];
     const example = mode === 'program' ? TEMPLATE_EXAMPLE_ROW : STUDENT_TEMPLATE_EXAMPLE_ROW;
     const ws = XLSX.utils.aoa_to_sheet([headers, example]);
@@ -112,6 +114,7 @@ export default function ExcelImportModule() {
     setParseError('');
     setFileName(file.name);
     try {
+      const XLSX = await import('xlsx');
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { cellDates: true });
       const sheet = wb.Sheets[wb.SheetNames[0]];

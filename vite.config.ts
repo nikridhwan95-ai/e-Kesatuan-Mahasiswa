@@ -9,6 +9,18 @@ import { defineConfig } from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        output: {
+          // Pustaka besar dipisahkan ke chunk sendiri (xlsx menjadi chunk
+          // automatik melalui import() dinamik dalam ExcelImportModule).
+          manualChunks: {
+            recharts: ['recharts'],
+            supabase: ['@supabase/supabase-js'],
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

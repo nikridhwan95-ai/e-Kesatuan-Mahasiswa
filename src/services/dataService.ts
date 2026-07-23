@@ -3,6 +3,7 @@
 
 import { supabase } from '../supabase';
 import { User, Application, Report, PresentationSession, UserRole } from '../types';
+import { cached, invalidate } from './cache';
 
 function fail(context: string, error: { message: string } | null): never {
   throw new Error(`${context}: ${error?.message ?? 'ralat tidak diketahui'}`);
@@ -38,18 +39,22 @@ export const createUserProfile = async (uid: string, data: Partial<User>) => {
       { onConflict: 'uid' },
     );
   if (error) fail('createUserProfile', error);
+  invalidate('users');
 };
 
 export const updateUserProfile = async (uid: string, data: Partial<User>) => {
   const { error } = await supabase.from('users').update(data).eq('uid', uid);
   if (error) fail('updateUserProfile', error);
+  invalidate('users');
 };
 
-export const getUsers = async (): Promise<User[]> => {
-  const { data, error } = await supabase.from('users').select(USER_LIST_COLUMNS);
-  if (error) fail('getUsers', error);
-  return (data ?? []) as User[];
-};
+// Dicache 30s: senarai ini diambil oleh 7+ modul pada setiap tukar tab.
+export const getUsers = async (): Promise<User[]> =>
+  cached('users:list', 30_000, async () => {
+    const { data, error } = await supabase.from('users').select(USER_LIST_COLUMNS);
+    if (error) fail('getUsers', error);
+    return (data ?? []) as User[];
+  });
 
 // Indeks unik users_email_uq menjamin paling banyak satu baris sepadan.
 export const getUserByEmail = async (email: string): Promise<User | null> => {
@@ -198,6 +203,7 @@ export const deleteApplication = async (appId: string) => {
   if (evErr) fail('deleteApplication(evidence)', evErr);
   const { error } = await supabase.from('applications').delete().eq('id', appId);
   if (error) fail('deleteApplication', error);
+  invalidate('evidence:');
 };
 
 // Padam SEMUA data program (zon bahaya tetapan admin): bukti terbitan dan
@@ -218,6 +224,7 @@ export const deleteAllApplications = async () => {
   if (e1) fail('deleteAllApplications(applications)', e1);
   const { error: e2 } = await supabase.from('reports').delete().neq('id', '');
   if (e2) fail('deleteAllApplications(reports)', e2);
+  invalidate('evidence:');
 
   // Fail storan (kertas kerja / laporan / resit) — usaha terbaik; kegagalan
   // tidak menghalang pemadaman data (dicatat sahaja).
@@ -353,15 +360,22 @@ export const getFileUrl = async (stored: string): Promise<string> => {
 
 // ── Tetapan (jadual settings: id → data jsonb) ─────────────────────────────
 
-export const getSetting = async <T = Record<string, unknown>>(id: string): Promise<T | null> => {
-  const { data, error } = await supabase.from('settings').select('data').eq('id', id).maybeSingle();
-  if (error) fail('getSetting', error);
-  return (data?.data as T | undefined) ?? null;
-};
+// Dicache 60s per id — tetapan jarang berubah dan dibaca oleh banyak skrin.
+export const getSetting = async <T = Record<string, unknown>>(id: string): Promise<T | null> =>
+  cached(`setting:${id}`, 60_000, async () => {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('data')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) fail('getSetting', error);
+    return (data?.data as T | undefined) ?? null;
+  });
 
 export const saveSetting = async (id: string, data: Record<string, unknown>) => {
   const { error } = await supabase.from('settings').upsert({ id, data }, { onConflict: 'id' });
   if (error) fail('saveSetting', error);
+  invalidate('setting:');
 };
 
 async function getSettingList(id: string, defaults: string[]): Promise<string[]> {

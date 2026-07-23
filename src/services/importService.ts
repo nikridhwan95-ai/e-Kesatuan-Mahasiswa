@@ -12,6 +12,7 @@ import { syncEvidenceForApplication } from '../bakat/evidenceService';
 import { ImportedProgramme, ImportedStudent, importedStudentUid } from './importParser';
 import { planProgrammeImport } from './importPlan';
 import { APPLICATION_COLUMNS } from './dataService';
+import { invalidate } from './cache';
 
 // Penanda pada applications.reviewerComment untuk rekod yang dicipta oleh
 // import — membolehkan reconcileImportOrphans mengenal pasti baris import
@@ -92,6 +93,7 @@ export async function importStudents(
     }
   }
 
+  invalidate('users');
   return results;
 }
 
@@ -237,6 +239,8 @@ export async function importProgrammes(
     }
   }
 
+  invalidate('users');
+  invalidate('evidence:');
   return results;
 }
 

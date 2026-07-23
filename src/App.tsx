@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   LayoutDashboard,
   FileText,
@@ -20,24 +20,27 @@ import {
   Radar,
   FileSpreadsheet,
 } from 'lucide-react';
-import AnalyticsDashboard from './components/dashboard/AnalyticsDashboard';
-import ApplicationModule from './components/application/ApplicationModule';
-import ReportModule from './components/report/ReportModule';
-import StudentProfile from './components/profile/StudentProfile';
-import PresentationModule from './components/presentation/PresentationModule';
-import ArchiveModule from './components/archive/ArchiveModule';
-import ReviewModule from './components/review/ReviewModule';
-import LetterSettingsModule from './components/settings/LetterSettingsModule';
-import SystemSettings from './components/settings/SystemSettings';
-import DataAnalyticsModule from './components/admin/DataAnalyticsModule';
-import BakatProfile from './components/bakat/BakatProfile';
-import TalentSearchModule from './components/bakat/TalentSearchModule';
-import StudentDirectoryModule from './components/bakat/StudentDirectoryModule';
-import ExcelImportModule from './components/import/ExcelImportModule';
 import { UserRole, User as UserType } from './types';
 import { supabase, toAppUser, AppUser, usernameToEmail, PORTAL_ADMIN_EMAIL } from './supabase';
 import { useNotification } from './components/shared/ToastProvider';
 import { getUserProfile, createUserProfile } from './services/dataService';
+
+// Modul tab dimuat malas (React.lazy) — pengguna hanya memuat turun kod
+// untuk skrin yang dibuka; recharts/xlsx tidak lagi berada dalam bundle awal.
+const AnalyticsDashboard = lazy(() => import('./components/dashboard/AnalyticsDashboard'));
+const ApplicationModule = lazy(() => import('./components/application/ApplicationModule'));
+const ReportModule = lazy(() => import('./components/report/ReportModule'));
+const StudentProfile = lazy(() => import('./components/profile/StudentProfile'));
+const PresentationModule = lazy(() => import('./components/presentation/PresentationModule'));
+const ArchiveModule = lazy(() => import('./components/archive/ArchiveModule'));
+const ReviewModule = lazy(() => import('./components/review/ReviewModule'));
+const LetterSettingsModule = lazy(() => import('./components/settings/LetterSettingsModule'));
+const SystemSettings = lazy(() => import('./components/settings/SystemSettings'));
+const DataAnalyticsModule = lazy(() => import('./components/admin/DataAnalyticsModule'));
+const BakatProfile = lazy(() => import('./components/bakat/BakatProfile'));
+const TalentSearchModule = lazy(() => import('./components/bakat/TalentSearchModule'));
+const StudentDirectoryModule = lazy(() => import('./components/bakat/StudentDirectoryModule'));
+const ExcelImportModule = lazy(() => import('./components/import/ExcelImportModule'));
 
 type Tab =
   | 'dashboard'
@@ -555,7 +558,16 @@ export default function App() {
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className={activeTab === 'approvals' ? 'w-full' : 'max-w-6xl mx-auto'}>
-            {renderContent()}
+            <Suspense
+              fallback={
+                <div className="flex flex-col items-center justify-center py-24 text-slate-500">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
+                  <p className="text-sm font-medium">Memuatkan modul...</p>
+                </div>
+              }
+            >
+              {renderContent()}
+            </Suspense>
           </div>
         </div>
       </main>

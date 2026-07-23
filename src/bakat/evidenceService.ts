@@ -8,6 +8,7 @@ import { supabase } from '../supabase';
 import { Application, Report } from '../types';
 import { Evidence } from './domain';
 import { deriveEvidence } from './derive';
+import { cached, invalidate } from '../services/cache';
 
 function fail(context: string, error: { message: string } | null): never {
   throw new Error(`${context}: ${error?.message ?? 'ralat tidak diketahui'}`);
@@ -26,10 +27,13 @@ export async function getEvidenceForStudent(uid: string): Promise<Evidence[]> {
   return (data ?? []) as unknown as Evidence[];
 }
 
+// Dicache 30s — dibaca oleh Radar Bakat, Profil Pelajar dan direktori.
 export async function getAllEvidence(): Promise<Evidence[]> {
-  const { data, error } = await supabase.from('evidence').select(EVIDENCE_COLUMNS);
-  if (error) fail('getAllEvidence', error);
-  return (data ?? []) as unknown as Evidence[];
+  return cached('evidence:all', 30_000, async () => {
+    const { data, error } = await supabase.from('evidence').select(EVIDENCE_COLUMNS);
+    if (error) fail('getAllEvidence', error);
+    return (data ?? []) as unknown as Evidence[];
+  });
 }
 
 // Dispute (pelajar): bekukan sumbangan evidence. Rekod TIDAK dipadam —
@@ -40,6 +44,7 @@ export async function disputeEvidenceDoc(evidenceId: string): Promise<void> {
     .update({ status: 'disputed' })
     .eq('id', evidenceId);
   if (error) fail('disputeEvidenceDoc', error);
+  invalidate('evidence:');
 }
 
 // Jana & simpan evidence bagi SATU program yang layak (idempotent).
@@ -57,7 +62,9 @@ export async function syncEvidenceForApplication(
     .upsert(derived, { onConflict: 'id', ignoreDuplicates: true })
     .select('id');
   if (error) fail('syncEvidenceForApplication', error);
-  return (data ?? []).length;
+  const created = (data ?? []).length;
+  if (created > 0) invalidate('evidence:');
+  return created;
 }
 
 // Backfill (admin): imbas SEMUA permohonan Lulus Sepenuhnya dengan laporan
