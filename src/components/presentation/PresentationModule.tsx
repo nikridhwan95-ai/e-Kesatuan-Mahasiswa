@@ -23,6 +23,7 @@ import {
   deletePresentationSession,
 } from '../../services/dataService';
 import { useNotification } from '../shared/ToastProvider';
+import StatusBadge from '../shared/StatusBadge';
 
 interface PresentationModuleProps {
   currentUserRole: UserRole;
@@ -216,58 +217,21 @@ export default function PresentationModule({
     return session ? session.name : sessionId;
   };
 
+  // Label jadual khusus untuk baris Menunggu Pembentangan (bukan status
+  // sistem); selebihnya menggunakan lencana status berkongsi.
   const getPresentationStatusBadge = (app: Application) => {
     if (app.status === 'Menunggu Pembentangan') {
-      if (app.presentationDate) {
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
-            Telah Dijadualkan
-          </span>
-        );
-      } else {
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200">
-            Menunggu Jadual
-          </span>
-        );
-      }
-    } else if (app.status === 'Menunggu Kelulusan YDP') {
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200">
-          Menunggu Kelulusan YDP
+      return app.presentationDate ? (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 whitespace-nowrap">
+          Telah Dijadualkan
         </span>
-      );
-    } else if (app.status === 'Menunggu Kelulusan TNC HEPA') {
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-indigo-50 text-indigo-700 border-indigo-200">
-          Menunggu Kelulusan TNC HEPA
-        </span>
-      );
-    } else if (app.status === 'Perlu Pembetulan') {
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-yellow-100 text-yellow-800 border-yellow-300">
-          Perlu Pembetulan
-        </span>
-      );
-    } else if (app.status === 'Lulus Sepenuhnya') {
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
-          Lulus Sepenuhnya
-        </span>
-      );
-    } else if (app.status === 'Ditolak') {
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-red-50 text-red-700 border-red-200">
-          Ditolak
-        </span>
-      );
-    } else {
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-slate-50 text-slate-700 border-slate-200">
-          {app.status}
+      ) : (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 whitespace-nowrap">
+          Menunggu Jadual
         </span>
       );
     }
+    return <StatusBadge status={app.status} />;
   };
 
   return (

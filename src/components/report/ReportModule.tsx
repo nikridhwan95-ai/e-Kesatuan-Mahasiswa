@@ -21,6 +21,7 @@ import {
 } from '../../services/dataService';
 import { syncEvidenceForApplication } from '../../bakat/evidenceService';
 import FileLink from '../shared/FileLink';
+import StatusBadge from '../shared/StatusBadge';
 import { useNotification } from '../shared/ToastProvider';
 
 interface ReportModuleProps {
@@ -51,6 +52,8 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
   const [verifiedBudget, setVerifiedBudget] = useState<string>('');
   const [filterSession, setFilterSession] = useState(getCurrentAcademicSession());
   const [filterSemester, setFilterSemester] = useState(getCurrentSemester());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const isStudent = currentUserRole === 'student';
 
   const academicSessions = generateAcademicSessions(5);
@@ -104,7 +107,15 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
   const displayedReports = reportList.filter((item) => {
     const matchesSession = filterSession ? item.app.academicSession === filterSession : true;
     const matchesSemester = filterSemester ? item.app.semester === filterSemester : true;
-    return matchesSession && matchesSemester;
+    const q = searchQuery.trim().toLowerCase();
+    const applicantName = (usersMap[item.app.applicantId] || '').toLowerCase();
+    const matchesSearch = q
+      ? item.app.title.toLowerCase().includes(q) ||
+        item.app.id.toLowerCase().includes(q) ||
+        applicantName.includes(q)
+      : true;
+    const matchesStatus = filterStatus ? item.status === filterStatus : true;
+    return matchesSession && matchesSemester && matchesSearch && matchesStatus;
   });
 
   const handleCreateReport = async () => {
@@ -267,6 +278,8 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
             <input
               type="text"
               placeholder="Cari laporan, nama pelajar atau ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
             />
           </div>
@@ -292,10 +305,16 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
               <option value="1">Semester 1</option>
               <option value="2">Semester 2</option>
             </select>
-            <select className="bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
+            >
               <option value="">Semua Status</option>
-              <option value="submitted">Menunggu Semakan</option>
-              <option value="approved">Disahkan</option>
+              <option value="Tertunggak">Tertunggak</option>
+              <option value="Dihantar">Dihantar</option>
+              <option value="Disahkan">Disahkan</option>
+              <option value="Perlu Pembetulan">Perlu Pembetulan</option>
             </select>
           </div>
         </div>
@@ -318,17 +337,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
                       ID Laporan: {item.report?.id || '-'}
                     </p>
                   </div>
-                  <span
-                    className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
-                      item.status === 'Tertunggak'
-                        ? 'bg-red-50 text-red-700 border-red-200'
-                        : item.status === 'Dihantar'
-                          ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    }`}
-                  >
-                    {item.status}
-                  </span>
+                  <StatusBadge status={item.status} className="shrink-0" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-xs">
@@ -395,17 +404,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
                       )}
                     </td>
                     <td className="p-3 sm:p-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold border ${
-                          item.status === 'Tertunggak'
-                            ? 'bg-red-50 text-red-700 border-red-200'
-                            : item.status === 'Dihantar'
-                              ? 'bg-blue-50 text-blue-700 border-blue-200'
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        }`}
-                      >
-                        {item.status}
-                      </span>
+                      <StatusBadge status={item.status} />
                     </td>
                     <td className="p-3 sm:p-4 text-center">
                       <button
@@ -457,15 +456,7 @@ export default function ReportModule({ currentUserRole, applicantId }: ReportMod
                       <span className="text-[9px] sm:text-[10px] font-bold text-slate-500">
                         {item.app.id}
                       </span>
-                      <span
-                        className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full font-semibold border ${
-                          item.status === 'Tertunggak'
-                            ? 'bg-red-50 text-red-700 border-red-200'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        }`}
-                      >
-                        {item.status}
-                      </span>
+                      <StatusBadge status={item.status} />
                     </div>
                     <h4
                       className={`font-semibold text-[11px] sm:text-sm leading-tight ${selectedAppId === item.app.id ? 'text-blue-900' : 'text-slate-900'}`}

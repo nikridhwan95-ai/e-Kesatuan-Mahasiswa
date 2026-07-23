@@ -4,6 +4,7 @@ import { Application, UserRole, ApplicationStatus } from '../../types';
 import ApprovalWorkflow from '../approval/ApprovalWorkflow';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
 import FileLink from '../shared/FileLink';
+import StatusBadge from '../shared/StatusBadge';
 import {
   getApplications,
   updateApplicationStatus,
@@ -146,46 +147,7 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
     sortOrder,
   ]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Menunggu Semakan':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-            Menunggu Semakan
-          </span>
-        );
-      case 'Perlu Pembetulan':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-300">
-            Perlu Pembetulan
-          </span>
-        );
-      case 'Menunggu Kelulusan TNC HEPA':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-            Menunggu Kelulusan TNC HEPA
-          </span>
-        );
-      case 'Lulus Sepenuhnya':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Lulus Sepenuhnya
-          </span>
-        );
-      case 'Ditolak':
-        return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-            Ditolak
-          </span>
-        );
-      default:
-        return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-            {status}
-          </span>
-        );
-    }
-  };
+  const getStatusBadge = (status: string) => <StatusBadge status={status} />;
 
   // Handlers for ApprovalWorkflow
   const handleApprove = async (id: string, comments?: string, approvedAmount?: number) => {
@@ -582,25 +544,10 @@ export default function ReviewModule({ currentUserRole }: ReviewModuleProps) {
           </table>
         </div>
 
-        {/* Pagination (Mock) */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-sm text-slate-600">
-          <span>
-            Memaparkan {filteredAndSortedApps.length} daripada {applications.length} permohonan
-          </span>
-          <div className="flex gap-2">
-            <button
-              className="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-white disabled:opacity-50"
-              disabled
-            >
-              Sebelumnya
-            </button>
-            <button
-              className="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-white disabled:opacity-50"
-              disabled
-            >
-              Seterusnya
-            </button>
-          </div>
+        {/* Bar penomboran palsu dibuang — semua data dimuat sepenuhnya di
+            klien; penomboran pelayan sebenar direkod sebagai kerja hadapan. */}
+        <div className="p-4 border-t border-slate-200 bg-slate-50 text-sm text-slate-600">
+          Memaparkan {filteredAndSortedApps.length} daripada {applications.length} permohonan
         </div>
       </div>
     </div>

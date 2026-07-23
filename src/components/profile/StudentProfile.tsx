@@ -1,14 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  User as UserIcon,
-  Mail,
-  Building,
-  BookOpen,
-  Award,
-  Camera,
-  Save,
-  RefreshCw,
-} from 'lucide-react';
+import { User as UserIcon, Mail, Building, BookOpen, Award, Save, RefreshCw } from 'lucide-react';
 import {
   getUserProfile,
   updateUserProfile,
@@ -221,11 +212,8 @@ export default function StudentProfile({ userId }: StudentProfileProps) {
                   )}
                 </div>
               </div>
-              {isEditing && (
-                <button className="absolute bottom-0 right-0 p-1.5 bg-white rounded-full shadow border border-slate-200 text-slate-600 hover:text-blue-600">
-                  <Camera className="w-4 h-4" />
-                </button>
-              )}
+              {/* Butang kamera tanpa fungsi dibuang — tiada aliran muat naik
+                  gambar profil; guna 'Ekstrak daripada Akaun' untuk gambar. */}
             </div>
           </div>
           <div className="absolute top-4 right-4 flex gap-2">

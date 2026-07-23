@@ -3,11 +3,13 @@ import { Archive, Search, Filter, Calendar, FileText, User, Tag } from 'lucide-r
 import { Application } from '../../types';
 import { getApplications, getUsers } from '../../services/dataService';
 import ApprovalLetterModule from '../approval/ApprovalLetterModule';
+import StatusBadge from '../shared/StatusBadge';
 
 import {
   getCurrentAcademicSession,
   getCurrentSemester,
   generateAcademicSessions,
+  formatTarikh,
 } from '../../utils/dateUtils';
 
 export default function ArchiveModule() {
@@ -184,10 +186,11 @@ export default function ArchiveModule() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-slate-400" />
-                          {new Date(app.startDate || (app as any).date).toLocaleDateString('ms-MY')}
+                          {formatTarikh(app.startDate)}
                           {app.startDate &&
+                            app.endDate &&
                             app.startDate !== app.endDate &&
-                            ` - ${new Date(app.endDate).toLocaleDateString('ms-MY')}`}
+                            ` - ${formatTarikh(app.endDate)}`}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -196,35 +199,20 @@ export default function ArchiveModule() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                            app.status === 'Lulus Sepenuhnya'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : app.status === 'Ditolak'
-                                ? 'bg-red-50 text-red-700 border-red-200'
-                                : app.status === 'Dibatalkan'
-                                  ? 'bg-slate-100 text-slate-600 border-slate-200'
-                                  : 'bg-slate-50 text-slate-700 border-slate-200'
-                          }`}
-                        >
-                          {app.status}
-                        </span>
+                        <StatusBadge status={app.status} />
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => {
-                              setSelectedApp(app);
-                              setShowApprovalLetter(true);
-                            }}
-                            className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 font-medium text-xs transition-colors bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100"
-                          >
-                            <FileText className="w-3.5 h-3.5" /> Surat
-                          </button>
-                          <button className="text-blue-600 hover:text-blue-800 font-medium text-xs transition-colors bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100">
-                            Butiran
-                          </button>
-                        </div>
+                        {/* Butang 'Butiran' tanpa fungsi dibuang — arkib ini
+                            hanya menyenarai; Surat ialah tindakan sebenar. */}
+                        <button
+                          onClick={() => {
+                            setSelectedApp(app);
+                            setShowApprovalLetter(true);
+                          }}
+                          className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 font-medium text-xs transition-colors bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100 ml-auto"
+                        >
+                          <FileText className="w-3.5 h-3.5" /> Surat
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -242,28 +230,12 @@ export default function ArchiveModule() {
             </table>
           </div>
 
-          {/* Pagination (Mock) */}
-          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+          {/* Bar penomboran palsu dibuang — semua rekod dimuat di klien. */}
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
             <span className="text-xs text-slate-500">
-              Menunjukkan{' '}
-              <span className="font-semibold text-slate-900">1-{filteredPrograms.length}</span>{' '}
-              daripada{' '}
               <span className="font-semibold text-slate-900">{filteredPrograms.length}</span> rekod
+              dipaparkan
             </span>
-            <div className="flex gap-2">
-              <button
-                disabled
-                className="px-3 py-1 text-xs font-medium text-slate-400 bg-white border border-slate-200 rounded-lg cursor-not-allowed"
-              >
-                Sebelumnya
-              </button>
-              <button
-                disabled
-                className="px-3 py-1 text-xs font-medium text-slate-400 bg-white border border-slate-200 rounded-lg cursor-not-allowed"
-              >
-                Seterusnya
-              </button>
-            </div>
           </div>
         </div>
       )}

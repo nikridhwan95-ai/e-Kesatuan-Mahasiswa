@@ -19,14 +19,7 @@ import { getAllEvidence } from '../../bakat/evidenceService';
 import { overallScore } from '../../bakat/insights';
 import { Avatar, BandChip } from './ui';
 import BakatProfile from './BakatProfile';
-
-const STATUS_CHIP: Record<string, string> = {
-  'Lulus Sepenuhnya': 'text-emerald-700 bg-emerald-50 border-emerald-200',
-  Ditolak: 'text-red-700 bg-red-50 border-red-200',
-  Dibatalkan: 'text-slate-500 bg-slate-100 border-slate-200',
-  'Perlu Pembetulan': 'text-amber-700 bg-amber-50 border-amber-200',
-};
-const statusChipCls = (s: string) => STATUS_CHIP[s] ?? 'text-blue-700 bg-blue-50 border-blue-200';
+import StatusBadge from '../shared/StatusBadge';
 
 // Profil Pelajar (Admin) — direktori semua pelajar; klik untuk halaman profil
 // penuh: butiran diri, senarai program e-Kesatuan, dan profil bakat.
@@ -219,11 +212,7 @@ export default function StudentDirectoryModule() {
                     </p>
                   </div>
                   <span className="text-xs tabular-nums text-slate-500">{a.startDate}</span>
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${statusChipCls(a.status)}`}
-                  >
-                    {a.status}
-                  </span>
+                  <StatusBadge status={a.status} />
                 </div>
               ))}
             </div>

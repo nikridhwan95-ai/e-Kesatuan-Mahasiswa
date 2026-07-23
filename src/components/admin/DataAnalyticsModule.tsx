@@ -28,30 +28,15 @@ import {
 } from 'lucide-react';
 import { getApplications, getCategories, getReports, getUsers } from '../../services/dataService';
 import { supabase } from '../../supabase';
+import { SEMESTER_ALLOCATION, categoryColor } from '../../constants';
 import { Application, Report, User } from '../../types';
 import { StatCard } from '../bakat/ui';
 
 // Peruntukan BHEP setiap semester (RM).
-const SEMESTER_ALLOCATION = 200000;
-
-// Warna TETAP per kategori 8 Teras — disahkan lulus semakan buta warna
-// (deutan ΔE 16.7) dengan scripts validate_palette dataviz. Warna mengikut
-// kategori, BUKAN susunan kemunculan, supaya kekal konsisten walau ditapis.
-const CATEGORY_COLORS: Record<string, string> = {
-  Kesukarelawanan: '#1d4ed8',
-  Kepimpinan: '#d97706',
-  Kebudayaan: '#991b1b',
-  Sukan: '#0891b2',
-  Keusahawanan: '#6d28d9',
-  'Akademik & Intelektual': '#ea580c',
-  Kerohanian: '#4338ca',
-  'Kelestarian & Alam Sekitar': '#4d7c0f',
-};
-const FALLBACK_COLOR = '#64748b'; // kategori luar 8 Teras
 const APPROVED_COLOR = '#1d4ed8'; // Kewangan Diluluskan
 const USED_COLOR = '#059669'; // Kewangan Digunakan
 
-const catColor = (cat: string) => CATEGORY_COLORS[cat] ?? FALLBACK_COLOR;
+const catColor = categoryColor;
 
 const fmtRM = (n: number) =>
   n.toLocaleString('ms-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

@@ -26,12 +26,12 @@ import {
 import { UserRole, Application, Report } from '../../types';
 import { getApplications, getReports } from '../../services/dataService';
 import { getCurrentAppUser, supabase } from '../../supabase';
+import { SEMESTER_ALLOCATION } from '../../constants';
+import StatusBadge from '../shared/StatusBadge';
 
 interface AnalyticsDashboardProps {
   currentUserRole: UserRole;
 }
-
-const SEMESTER_BUDGET = 200000;
 
 const COLORS = ['#2563eb', '#d97706', '#10b981', '#64748b'];
 
@@ -137,8 +137,8 @@ export default function AnalyticsDashboard({ currentUserRole }: AnalyticsDashboa
         0,
       );
 
-      const percentage = Math.min((totalApproved / SEMESTER_BUDGET) * 100, 100);
-      const remaining = Math.max(SEMESTER_BUDGET - totalApproved, 0);
+      const percentage = Math.min((totalApproved / SEMESTER_ALLOCATION) * 100, 100);
+      const remaining = Math.max(SEMESTER_ALLOCATION - totalApproved, 0);
 
       let color = 'bg-blue-600';
       if (percentage > 90) color = 'bg-red-500';
@@ -578,7 +578,7 @@ export default function AnalyticsDashboard({ currentUserRole }: AnalyticsDashboa
                 <span className="font-bold text-slate-900">
                   RM {remainingBudget.toLocaleString()}
                 </span>{' '}
-                daripada RM {SEMESTER_BUDGET.toLocaleString()} tidak akan dibawa ke semester
+                daripada RM {SEMESTER_ALLOCATION.toLocaleString()} tidak akan dibawa ke semester
                 hadapan.
               </p>
             </div>
@@ -722,17 +722,7 @@ export default function AnalyticsDashboard({ currentUserRole }: AnalyticsDashboa
                       {app.budget.toLocaleString()}
                     </td>
                     <td className="py-3 sm:py-4 px-2 sm:px-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          app.status === 'Lulus Sepenuhnya'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : app.status === 'Ditolak'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {app.status}
-                      </span>
+                      <StatusBadge status={app.status} />
                     </td>
                   </tr>
                 ))}
