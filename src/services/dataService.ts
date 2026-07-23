@@ -8,6 +8,19 @@ function fail(context: string, error: { message: string } | null): never {
   throw new Error(`${context}: ${error?.message ?? 'ralat tidak diketahui'}`);
 }
 
+// ── Unjuran lajur (kontrak eksplisit; elak select('*')) ────────────────────
+// Senarai pengguna TIDAK membawa medan sensitif (telefon, alamat, jawatan
+// persatuan) — profil penuh hanya melalui getUserProfile(uid).
+const USER_LIST_COLUMNS =
+  'uid,email,role,name,displayName,photoURL,matricNumber,faculty,college,studyYear,programme';
+
+// Lajur legasi seperti "aiSummary" sengaja dikecualikan.
+const APPLICATION_COLUMNS =
+  'id,applicantId,applicantPosition,title,startDate,endDate,status,budget,category,organizingLevel,jointlyOrganizedWith,softSkills,objective,academicSession,semester,venue,speaker,paperUrl,presentationSessionId,presentationDate,presentationRoom,reviewerComment,approvedAmount,createdAt,updatedAt';
+
+const REPORT_COLUMNS =
+  'id,applicationId,applicantId,status,reportUrl,receiptUrl,unionBudgetUsed,verifiedBudgetUsed,participantCount,submittedAt,reviewedAt,reviewerComment';
+
 // ── Profil Pengguna ─────────────────────────────────────────────────────────
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
@@ -32,11 +45,12 @@ export const updateUserProfile = async (uid: string, data: Partial<User>) => {
 };
 
 export const getUsers = async (): Promise<User[]> => {
-  const { data, error } = await supabase.from('users').select('*');
+  const { data, error } = await supabase.from('users').select(USER_LIST_COLUMNS);
   if (error) fail('getUsers', error);
   return (data ?? []) as User[];
 };
 
+// Indeks unik users_email_uq menjamin paling banyak satu baris sepadan.
 export const getUserByEmail = async (email: string): Promise<User | null> => {
   const { data, error } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
   if (error) fail('getUserByEmail', error);
@@ -46,7 +60,7 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
 // ── Permohonan ──────────────────────────────────────────────────────────────
 
 export const getApplications = async (role: UserRole, uid: string): Promise<Application[]> => {
-  let query = supabase.from('applications').select('*');
+  let query = supabase.from('applications').select(APPLICATION_COLUMNS);
   if (role === 'student') {
     query = query.eq('applicantId', uid);
   } else {
@@ -54,17 +68,17 @@ export const getApplications = async (role: UserRole, uid: string): Promise<Appl
   }
   const { data, error } = await query;
   if (error) fail('getApplications', error);
-  return (data ?? []) as Application[];
+  return (data ?? []) as unknown as Application[];
 };
 
 export const getApplicationById = async (appId: string): Promise<Application | null> => {
   const { data, error } = await supabase
     .from('applications')
-    .select('*')
+    .select(APPLICATION_COLUMNS)
     .eq('id', appId)
     .maybeSingle();
   if (error) fail('getApplicationById', error);
-  return (data as Application | null) ?? null;
+  return (data as unknown as Application | null) ?? null;
 };
 
 export const createApplication = async (
@@ -89,16 +103,24 @@ export const createApplication = async (
     const seq = parseInt(String(row.id).substring(prefix.length), 10);
     if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
   }
-  const newId = `${prefix}${String(maxSeq + 1).padStart(3, '0')}`;
 
-  const { error } = await supabase.from('applications').insert({
-    ...application,
-    id: newId,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-  if (error) fail('createApplication', error);
-  return newId;
+  // Turutan dikira di klien (baca-maks-kemudian-tulis) — dua penciptaan
+  // serentak boleh berlanggar pada kunci utama. Cuba semula dengan turutan
+  // seterusnya apabila konflik (kod Postgres 23505), maksimum 3 percubaan.
+  let lastError: { message: string } | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const newId = `${prefix}${String(maxSeq + 1 + attempt).padStart(3, '0')}`;
+    const { error } = await supabase.from('applications').insert({
+      ...application,
+      id: newId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    if (!error) return newId;
+    lastError = error;
+    if ((error as { code?: string }).code !== '23505') break;
+  }
+  fail('createApplication', lastError ?? { message: 'Gagal menjana ID permohonan' });
 };
 
 export const updateApplicationStatus = async (
@@ -114,7 +136,34 @@ export const updateApplicationStatus = async (
   if (error) fail('updateApplicationStatus', error);
 };
 
-export const updateApplication = async (appId: string, data: Partial<Application>) => {
+// Medan yang boleh disunting melalui updateApplication — senarai putih
+// eksplisit; medan istimewa (approvedAmount, reviewerComment, applicantId,
+// createdAt) TIDAK termasuk dan hanya boleh diubah melalui fungsi khusus.
+export type ApplicationEditableFields = Partial<
+  Pick<
+    Application,
+    | 'title'
+    | 'startDate'
+    | 'endDate'
+    | 'venue'
+    | 'speaker'
+    | 'budget'
+    | 'category'
+    | 'organizingLevel'
+    | 'jointlyOrganizedWith'
+    | 'softSkills'
+    | 'objective'
+    | 'academicSession'
+    | 'semester'
+    | 'paperUrl'
+    | 'applicantPosition'
+    | 'presentationSessionId'
+    | 'presentationDate'
+    | 'status'
+  >
+>;
+
+export const updateApplication = async (appId: string, data: ApplicationEditableFields) => {
   const { error } = await supabase
     .from('applications')
     .update({ ...data, updatedAt: new Date().toISOString() })
@@ -142,15 +191,50 @@ export const updateApplicationPresentation = async (
 };
 
 export const deleteApplication = async (appId: string) => {
+  // Bukti terbitan permohonan ini turut dibuang (source_id = id permohonan);
+  // laporan dipadam oleh FK ON DELETE CASCADE.
+  const { error: evErr } = await supabase.from('evidence').delete().eq('source_id', appId);
+  if (evErr) fail('deleteApplication(evidence)', evErr);
   const { error } = await supabase.from('applications').delete().eq('id', appId);
   if (error) fail('deleteApplication', error);
 };
 
+// Padam SEMUA data program (zon bahaya tetapan admin): bukti terbitan dan
+// fail storan turut dibersihkan supaya tiada rekod yatim tertinggal.
 export const deleteAllApplications = async () => {
+  const { data: apps, error: qErr } = await supabase.from('applications').select('id');
+  if (qErr) fail('deleteAllApplications(senarai)', qErr);
+  const appIds = (apps ?? []).map((a) => String(a.id));
+
+  // Bukti terbitan: padam mengikut kelompok source_id (elak URL terlalu panjang).
+  for (let i = 0; i < appIds.length; i += 100) {
+    const chunk = appIds.slice(i, i + 100);
+    const { error } = await supabase.from('evidence').delete().in('source_id', chunk);
+    if (error) fail('deleteAllApplications(evidence)', error);
+  }
+
   const { error: e1 } = await supabase.from('applications').delete().neq('id', '');
   if (e1) fail('deleteAllApplications(applications)', e1);
   const { error: e2 } = await supabase.from('reports').delete().neq('id', '');
   if (e2) fail('deleteAllApplications(reports)', e2);
+
+  // Fail storan (kertas kerja / laporan / resit) — usaha terbaik; kegagalan
+  // tidak menghalang pemadaman data (dicatat sahaja).
+  try {
+    for (const prefix of ['applications', 'reports']) {
+      const { data: folders } = await supabase.storage.from('uploads').list(prefix);
+      for (const folder of folders ?? []) {
+        const dir = `${prefix}/${folder.name}`;
+        const { data: files } = await supabase.storage.from('uploads').list(dir);
+        const names = (files ?? []).map((f) => `${dir}/${f.name}`);
+        if (names.length > 0) {
+          await supabase.storage.from('uploads').remove(names);
+        }
+      }
+    }
+  } catch (storageErr) {
+    console.warn('deleteAllApplications: pembersihan storan tidak lengkap', storageErr);
+  }
 };
 
 // ── Sesi Semakan / Pembentangan ─────────────────────────────────────────────
@@ -193,11 +277,11 @@ export const deletePresentationSession = async (sessionId: string) => {
 // ── Laporan ─────────────────────────────────────────────────────────────────
 
 export const getReports = async (role: UserRole, uid: string): Promise<Report[]> => {
-  let query = supabase.from('reports').select('*');
+  let query = supabase.from('reports').select(REPORT_COLUMNS);
   if (role === 'student') query = query.eq('applicantId', uid);
   const { data, error } = await query;
   if (error) fail('getReports', error);
-  return (data ?? []) as Report[];
+  return (data ?? []) as unknown as Report[];
 };
 
 export const createReport = async (report: Omit<Report, 'id' | 'submittedAt'>) => {
@@ -214,7 +298,10 @@ export const updateReportStatus = async (
   reportId: string,
   status: string,
   comment?: string,
-  additionalData?: Partial<Report>,
+  // Senarai putih: hanya medan pengesahan yang boleh diiring bersama status.
+  additionalData?: Partial<
+    Pick<Report, 'verifiedBudgetUsed' | 'participantCount' | 'reportUrl' | 'receiptUrl'>
+  >,
 ) => {
   const updateData: Record<string, unknown> = {
     status,

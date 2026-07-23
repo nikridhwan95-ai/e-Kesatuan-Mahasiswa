@@ -13,7 +13,7 @@ import {
   Users2,
 } from 'lucide-react';
 import { Application, User } from '../../types';
-import { getApplications, getUsers } from '../../services/dataService';
+import { getApplications, getUserProfile, getUsers } from '../../services/dataService';
 import { Evidence, COMPETENCY_CODES, competencyName, recalculateStudent } from '../../bakat/domain';
 import { getAllEvidence } from '../../bakat/evidenceService';
 import { overallScore } from '../../bakat/insights';
@@ -37,6 +37,17 @@ export default function StudentDirectoryModule() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selected, setSelected] = useState<User | null>(null);
+
+  // Senarai getUsers tidak lagi membawa medan sensitif (telefon/alamat);
+  // profil penuh diambil melalui getUserProfile apabila pelajar dipilih.
+  const selectStudent = (u: User) => {
+    setSelected(u);
+    getUserProfile(u.uid)
+      .then((full) => {
+        if (full) setSelected((cur) => (cur && cur.uid === full.uid ? full : cur));
+      })
+      .catch((error) => console.error('Error fetching full profile:', error));
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -277,7 +288,7 @@ export default function StudentDirectoryModule() {
               {displayedRows.map(({ user, overall, topStrength, programmeCount }) => (
                 <tr
                   key={user.uid}
-                  onClick={() => setSelected(user)}
+                  onClick={() => selectStudent(user)}
                   className="border-b border-slate-100 last:border-0 hover:bg-indigo-50/40 cursor-pointer transition-colors"
                 >
                   <td className="py-3 pr-3">

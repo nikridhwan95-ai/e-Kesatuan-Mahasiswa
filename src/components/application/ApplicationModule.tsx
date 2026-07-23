@@ -193,15 +193,12 @@ export default function ApplicationModule({
         paperUrl = await uploadFile(path, correctionFile);
       }
 
+      // reviewerComment TIDAK dikosongkan: ia medan kawalan penyemak
+      // (trigger DB menyekat pemohon mengubahnya) dan panel catatan hanya
+      // dipaparkan semasa status Perlu Pembetulan / Ditolak.
       await updateApplication(selectedApp.id, {
         paperUrl,
         status: 'Menunggu Semakan',
-        reviewerComment: '', // Clear comment or keep history? Maybe keep it but status change implies addressed.
-        // Actually, let's keep it in history if we had a history array, but here we just have one field.
-        // Maybe we shouldn't clear it so they can see what they fixed?
-        // But usually "Menunggu Semakan" means it's clean.
-        // Let's clear it or maybe move it to a 'previousComments' if we had that.
-        // For now, let's clear it to indicate fresh start.
       });
 
       showNotification('Pembetulan berjaya dihantar!', 'success');

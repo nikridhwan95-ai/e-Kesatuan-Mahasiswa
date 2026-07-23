@@ -191,11 +191,15 @@ drop policy if exists applications_select on public.applications;
 create policy applications_select on public.applications for select to authenticated
   using ("applicantId" = (select auth.uid())::text or public.is_management());
 
--- Pelajar memohon untuk diri sendiri, ATAU admin mengimport program lepas
--- bagi pihak pelajar (Import Excel).
+-- Pelajar memohon untuk diri sendiri (status permulaan sahaja — tiada
+-- kelulusan kendiri), ATAU pengurusan/admin mengimport program lepas bagi
+-- pihak pelajar (Import Excel, sebarang status).
 drop policy if exists applications_insert on public.applications;
 create policy applications_insert on public.applications for insert to authenticated
-  with check ("applicantId" = (select auth.uid())::text or public.is_admin());
+  with check (
+    public.is_management()
+    or ("applicantId" = (select auth.uid())::text and status in ('Draf', 'Menunggu Semakan'))
+  );
 
 drop policy if exists applications_update on public.applications;
 create policy applications_update on public.applications for update to authenticated
@@ -203,7 +207,10 @@ create policy applications_update on public.applications for update to authentic
     ("applicantId" = (select auth.uid())::text and status in ('Draf','Perlu Pembetulan'))
     or public.is_management()
   )
-  with check ("applicantId" is not null);
+  with check (
+    "applicantId" = (select auth.uid())::text
+    or public.is_management()
+  );
 
 drop policy if exists applications_delete on public.applications;
 create policy applications_delete on public.applications for delete to authenticated
@@ -214,9 +221,14 @@ drop policy if exists reports_select on public.reports;
 create policy reports_select on public.reports for select to authenticated
   using ("applicantId" = (select auth.uid())::text or public.is_management());
 
+-- Pelajar menghantar laporan sendiri (status permulaan sahaja — tiada
+-- pengesahan kendiri); pengurusan bebas (pengesahan, import).
 drop policy if exists reports_insert on public.reports;
 create policy reports_insert on public.reports for insert to authenticated
-  with check ("applicantId" = (select auth.uid())::text or public.is_management());
+  with check (
+    public.is_management()
+    or ("applicantId" = (select auth.uid())::text and status in ('Tertunggak', 'Dihantar'))
+  );
 
 drop policy if exists reports_update on public.reports;
 create policy reports_update on public.reports for update to authenticated
@@ -224,7 +236,10 @@ create policy reports_update on public.reports for update to authenticated
     ("applicantId" = (select auth.uid())::text and status in ('Tertunggak','Perlu Pembetulan'))
     or public.is_management()
   )
-  with check ("applicantId" is not null);
+  with check (
+    "applicantId" = (select auth.uid())::text
+    or public.is_management()
+  );
 
 drop policy if exists reports_delete on public.reports;
 create policy reports_delete on public.reports for delete to authenticated
@@ -277,6 +292,228 @@ create policy evidence_update on public.evidence for update to authenticated
 drop policy if exists evidence_delete on public.evidence;
 create policy evidence_delete on public.evidence for delete to authenticated
   using (public.is_admin());
+
+-- ── Integriti data: trigger kawalan + kekangan ─────────────────────────────
+-- Trigger BEFORE UPDATE menghalang pemalsuan medan dan lompatan status oleh
+-- akaun bukan pengurusan (pertahanan dalam kedalaman di sebalik RLS; bersedia
+-- untuk akaun pelajar individu pada masa hadapan).
+
+create or replace function public.guard_application_update()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+begin
+  if public.is_management() then
+    return new;
+  end if;
+  if new.id is distinct from old.id
+     or new."applicantId" is distinct from old."applicantId"
+     or new."approvedAmount" is distinct from old."approvedAmount"
+     or new."reviewerComment" is distinct from old."reviewerComment"
+     or new."presentationSessionId" is distinct from old."presentationSessionId"
+     or new."presentationDate" is distinct from old."presentationDate"
+     or new."presentationRoom" is distinct from old."presentationRoom"
+     or new."createdAt" is distinct from old."createdAt" then
+    raise exception 'Medan terkawal permohonan tidak boleh diubah oleh pemohon';
+  end if;
+  if old.status not in ('Draf', 'Perlu Pembetulan')
+     or new.status not in ('Draf', 'Perlu Pembetulan', 'Menunggu Semakan', 'Menunggu Semakan Pindaan', 'Dibatalkan') then
+    raise exception 'Peralihan status permohonan tidak dibenarkan';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_guard_application_update on public.applications;
+create trigger trg_guard_application_update
+  before update on public.applications
+  for each row execute function public.guard_application_update();
+
+create or replace function public.guard_report_update()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+begin
+  if public.is_management() then
+    return new;
+  end if;
+  if new.id is distinct from old.id
+     or new."applicationId" is distinct from old."applicationId"
+     or new."applicantId" is distinct from old."applicantId"
+     or new."verifiedBudgetUsed" is distinct from old."verifiedBudgetUsed"
+     or new."reviewedAt" is distinct from old."reviewedAt"
+     or new."reviewerComment" is distinct from old."reviewerComment" then
+    raise exception 'Medan terkawal laporan tidak boleh diubah oleh pemohon';
+  end if;
+  if old.status not in ('Tertunggak', 'Perlu Pembetulan')
+     or new.status not in ('Tertunggak', 'Perlu Pembetulan', 'Dihantar') then
+    raise exception 'Peralihan status laporan tidak dibenarkan';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_guard_report_update on public.reports;
+create trigger trg_guard_report_update
+  before update on public.reports
+  for each row execute function public.guard_report_update();
+
+-- IRON RULE di peringkat DB: bukti tidak boleh diubah. Hanya status (dan
+-- superseded_by, oleh pengurusan) boleh berubah selepas rekod wujud.
+create or replace function public.guard_evidence_update()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+begin
+  if new.id is distinct from old.id
+     or new.student_id is distinct from old.student_id
+     or new.source_type is distinct from old.source_type
+     or new.source_id is distinct from old.source_id
+     or new.competency_id is distinct from old.competency_id
+     or new.points is distinct from old.points
+     or new.weight_factors is distinct from old.weight_factors
+     or new.ai_confidence is distinct from old.ai_confidence
+     or new.narrative is distinct from old.narrative
+     or new.event_date is distinct from old.event_date
+     or new.approved_by is distinct from old.approved_by
+     or new.approved_at is distinct from old.approved_at then
+    raise exception 'Bukti tidak boleh diubah — hanya status boleh bertukar';
+  end if;
+  if not public.is_management()
+     and new.superseded_by is distinct from old.superseded_by then
+    raise exception 'Bukti tidak boleh diubah — hanya status boleh bertukar';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_guard_evidence_update on public.evidence;
+create trigger trg_guard_evidence_update
+  before update on public.evidence
+  for each row execute function public.guard_evidence_update();
+
+-- ── Kunci asing (ditambah NOT VALID; pengesahan berasingan supaya baris ────
+-- lama yang yatim tidak menggagalkan keseluruhan skrip).
+--
+-- SEMAKAN PRA-JALANAN (jalankan dahulu; mana-mana baris = yatim yang perlu
+-- dibersihkan sebelum VALIDATE berjaya — kekangan tetap melindungi baris
+-- BAHARU walaupun pengesahan gagal):
+--   select r.id from public.reports r
+--     left join public.applications a on a.id = r."applicationId"
+--     where a.id is null;
+--   select a.id from public.applications a
+--     left join public.users u on u.uid = a."applicantId"
+--     where u.uid is null;
+--   select e.id from public.evidence e
+--     left join public.users u on u.uid = e.student_id
+--     where u.uid is null;
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'reports_application_fk') then
+    alter table public.reports add constraint reports_application_fk
+      foreign key ("applicationId") references public.applications(id)
+      on delete cascade not valid;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'applications_applicant_fk') then
+    alter table public.applications add constraint applications_applicant_fk
+      foreign key ("applicantId") references public.users(uid)
+      on delete restrict not valid;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'evidence_student_fk') then
+    alter table public.evidence add constraint evidence_student_fk
+      foreign key (student_id) references public.users(uid)
+      on delete restrict not valid;
+  end if;
+end $$;
+
+-- TIADA kunci asing pada evidence.source_id: rujukan polimorfik — bukti
+-- manual/pengesahan masa hadapan akan merujuk sumber selain applications.
+
+do $$ begin
+  alter table public.reports validate constraint reports_application_fk;
+exception when others then
+  raise notice 'reports_application_fk belum disahkan: %', sqlerrm;
+end $$;
+
+do $$ begin
+  alter table public.applications validate constraint applications_applicant_fk;
+exception when others then
+  raise notice 'applications_applicant_fk belum disahkan: %', sqlerrm;
+end $$;
+
+do $$ begin
+  alter table public.evidence validate constraint evidence_student_fk;
+exception when others then
+  raise notice 'evidence_student_fk belum disahkan: %', sqlerrm;
+end $$;
+
+-- ── Kekangan CHECK (nilai status/peranan mesti sepadan dengan union literal
+-- dalam src/types.ts) — NOT VALID supaya data lama tidak menghalang skrip.
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'users_role_chk') then
+    alter table public.users add constraint users_role_chk check (
+      role in ('student', 'unit_semakan', 'unit_pembentangan', 'unit_kertas_kerja',
+               'unit_pelaporan', 'admin', 'ydp', 'tnc_hepa')
+    ) not valid;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'applications_status_chk') then
+    alter table public.applications add constraint applications_status_chk check (
+      status in ('Draf', 'Menunggu Semakan', 'Perlu Pembetulan', 'Menunggu Pembentangan',
+                 'Menunggu Kelulusan YDP', 'Menunggu Kelulusan TNC HEPA', 'Lulus Sepenuhnya',
+                 'Ditolak', 'Dibatalkan', 'Menunggu Semakan Pindaan',
+                 'Menunggu Kelulusan YDP (Pindaan)')
+    ) not valid;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'reports_status_chk') then
+    alter table public.reports add constraint reports_status_chk check (
+      status in ('Tertunggak', 'Dihantar', 'Disahkan', 'Perlu Pembetulan')
+    ) not valid;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'evidence_status_chk') then
+    alter table public.evidence add constraint evidence_status_chk check (
+      status in ('pending', 'approved', 'disputed', 'void')
+    ) not valid;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'sessions_status_chk') then
+    alter table public.presentation_sessions add constraint sessions_status_chk check (
+      status in ('Open', 'Closed')
+    ) not valid;
+  end if;
+end $$;
+
+-- ── Indeks UNIK (e-mel; matrik jika diisi) ─────────────────────────────────
+-- SEMAKAN PRA-JALANAN duplikat (bersihkan/gabungkan mana-mana baris dahulu):
+--   select lower(email), count(*) from public.users
+--     group by lower(email) having count(*) > 1;
+--   select "matricNumber", count(*) from public.users
+--     where "matricNumber" is not null
+--     group by "matricNumber" having count(*) > 1;
+
+do $$ begin
+  create unique index if not exists users_email_uq on public.users (lower(email));
+exception when others then
+  raise notice 'users_email_uq tidak dicipta (duplikat wujud?): %', sqlerrm;
+end $$;
+
+do $$ begin
+  create unique index if not exists users_matric_uq on public.users ("matricNumber")
+    where "matricNumber" is not null;
+exception when others then
+  raise notice 'users_matric_uq tidak dicipta (duplikat wujud?): %', sqlerrm;
+end $$;
 
 -- ── Storage (muat naik kertas kerja, laporan, resit, kepala surat) ─────────
 -- Baldi PERIBADI: fail mengandungi data peribadi pelajar (kertas kerja,

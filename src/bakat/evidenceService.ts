@@ -13,16 +13,23 @@ function fail(context: string, error: { message: string } | null): never {
   throw new Error(`${context}: ${error?.message ?? 'ralat tidak diketahui'}`);
 }
 
+// Kontrak lajur eksplisit — sepadan dengan jenis Evidence (domain/types.ts).
+const EVIDENCE_COLUMNS =
+  'id,student_id,source_type,source_id,competency_id,points,weight_factors,ai_confidence,status,approved_by,approved_at,superseded_by,narrative,event_date';
+
 export async function getEvidenceForStudent(uid: string): Promise<Evidence[]> {
-  const { data, error } = await supabase.from('evidence').select('*').eq('student_id', uid);
+  const { data, error } = await supabase
+    .from('evidence')
+    .select(EVIDENCE_COLUMNS)
+    .eq('student_id', uid);
   if (error) fail('getEvidenceForStudent', error);
-  return (data ?? []) as Evidence[];
+  return (data ?? []) as unknown as Evidence[];
 }
 
 export async function getAllEvidence(): Promise<Evidence[]> {
-  const { data, error } = await supabase.from('evidence').select('*');
+  const { data, error } = await supabase.from('evidence').select(EVIDENCE_COLUMNS);
   if (error) fail('getAllEvidence', error);
-  return (data ?? []) as Evidence[];
+  return (data ?? []) as unknown as Evidence[];
 }
 
 // Dispute (pelajar): bekukan sumbangan evidence. Rekod TIDAK dipadam —
