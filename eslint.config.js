@@ -3,7 +3,9 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'dev'] },
+  // supabase/functions ialah kod Deno (global Deno, import npm:) — di luar
+  // skop tsc/ESLint projek ini.
+  { ignores: ['dist', 'node_modules', 'dev', 'supabase/functions'] },
   ...tseslint.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],

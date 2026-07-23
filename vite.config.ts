@@ -1,15 +1,14 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+// NOTA KESELAMATAN: jangan sesekali menyuntik kunci API ke dalam bundle
+// klien melalui 'define' — panggilan Gemini dibuat oleh Fungsi Edge
+// 'jana-analisis' (supabase/functions) yang memegang kunci sebagai rahsia.
+export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

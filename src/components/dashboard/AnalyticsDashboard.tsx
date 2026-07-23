@@ -25,8 +25,7 @@ import {
 } from 'lucide-react';
 import { UserRole, Application, Report } from '../../types';
 import { getApplications, getReports } from '../../services/dataService';
-import { getCurrentAppUser } from '../../supabase';
-import { GoogleGenAI } from '@google/genai';
+import { getCurrentAppUser, supabase } from '../../supabase';
 
 interface AnalyticsDashboardProps {
   currentUserRole: UserRole;
@@ -339,35 +338,34 @@ export default function AnalyticsDashboard({ currentUserRole }: AnalyticsDashboa
 
   const stats = getStats();
 
+  // Panggilan Gemini dibuat di sisi pelayan (Fungsi Edge 'jana-analisis') —
+  // kunci API tidak pernah sampai ke pelayar. Prompt dibina oleh fungsi.
   const generateAIInsight = async () => {
     setIsGeneratingAI(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
       const totalApps = applications.length;
       const approvedApps = applications.filter((a) => a.status === 'Lulus Sepenuhnya').length;
       const totalBudget = applications.reduce((sum, a) => sum + a.budget, 0);
 
-      const prompt = `
-        Sebagai penganalisis data universiti, berikan satu perenggan ringkas (3-4 ayat) analisis eksekutif berdasarkan data berikut:
-        - Peranan Pengguna: ${currentUserRole}
-        - Jumlah Permohonan: ${totalApps}
-        - Permohonan Lulus: ${approvedApps}
-        - Jumlah Bajet Terlibat: RM${totalBudget.toLocaleString()}
-        - Sesi: ${selectedAcademicSession}, Semester: ${selectedSemester}
-        
-        Berikan fokus kepada prestasi pengurusan aktiviti dan cadangan ringkas. Gunakan Bahasa Melayu yang profesional.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
+      const { data, error } = await supabase.functions.invoke('jana-analisis', {
+        body: {
+          jenis: 'papan-pemuka',
+          data: {
+            peranan: currentUserRole,
+            jumlahPermohonan: totalApps,
+            permohonanLulus: approvedApps,
+            jumlahBajet: totalBudget,
+            sesi: selectedAcademicSession,
+            semester: selectedSemester,
+          },
+        },
       });
+      if (error) throw error;
 
-      setAiInsight(response.text || 'Tiada analisis dapat dijana.');
+      setAiInsight((data as { text?: string })?.text || 'Tiada analisis dapat dijana.');
     } catch (error) {
       console.error('Error generating AI insight:', error);
-      setAiInsight('Gagal menjana analisis AI.');
+      setAiInsight('Gagal menjana analisis AI. Sila cuba lagi.');
     } finally {
       setIsGeneratingAI(false);
     }

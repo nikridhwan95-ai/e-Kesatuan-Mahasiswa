@@ -26,8 +26,8 @@ import {
   Coins,
   FileText,
 } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { getApplications, getCategories, getReports, getUsers } from '../../services/dataService';
+import { supabase } from '../../supabase';
 import { Application, Report, User } from '../../types';
 import { StatCard } from '../bakat/ui';
 
@@ -391,36 +391,33 @@ export default function DataAnalyticsModule() {
     return out.slice(0, 5);
   }, [terasDecision, pendingReports, semesterBudgetData, filters.teras]);
 
+  // Panggilan Gemini dibuat di sisi pelayan (Fungsi Edge 'jana-analisis') —
+  // kunci API tidak pernah sampai ke pelayar. Prompt dibina oleh fungsi.
   const generateAIInsight = async () => {
     setIsGeneratingAI(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const categorySummary = donutData.map((d) => `${d.name}: ${d.value}`).join(', ');
-      const prompt = `
-        Berdasarkan data aktiviti pelajar universiti berikut (Tahun: ${filters.tahun}, Teras: ${filters.teras}, Peringkat: ${filters.peringkat}), berikan satu perenggan analisis eksekutif mengenai trend semasa dan cadangan penambahbaikan.
-
-        Data Semasa (Ditapis):
-        Jumlah Permohonan: ${summary.total}
-        Permohonan Lulus Sepenuhnya: ${summary.approvedCount} (${summary.approvalRate}%)
-        Bajet Diluluskan: RM${summary.budgetApproved.toLocaleString()}
-        Bajet Digunakan (disahkan): RM${summary.budgetUsed.toLocaleString()}
-        Jumlah Peserta Terlibat: ${summary.participants.toLocaleString()}
-        Taburan Kategori Program: ${categorySummary}
-
-        Sila berikan ulasan yang kritikal tetapi membina untuk membantu pihak pengurusan membuat keputusan yang lebih baik.
-      `;
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          systemInstruction:
-            'Anda ialah penganalisis data universiti yang pakar dalam pembangunan pelajar. Berikan analisis yang profesional, padat dan berwawasan dalam Bahasa Melayu.',
+      const { data, error } = await supabase.functions.invoke('jana-analisis', {
+        body: {
+          jenis: 'analitik',
+          data: {
+            tahun: filters.tahun,
+            teras: filters.teras,
+            peringkat: filters.peringkat,
+            jumlahPermohonan: summary.total,
+            permohonanLulus: summary.approvedCount,
+            kadarLulus: summary.approvalRate,
+            bajetDiluluskan: summary.budgetApproved,
+            bajetDigunakan: summary.budgetUsed,
+            peserta: summary.participants,
+            taburanKategori: donutData.map((d) => ({ name: d.name, value: d.value })),
+          },
         },
       });
-      setAiInsight(response.text || 'Tiada analisis dapat dijana.');
+      if (error) throw error;
+      setAiInsight((data as { text?: string })?.text || 'Tiada analisis dapat dijana.');
     } catch (error) {
       console.error('Error generating AI insight:', error);
-      setAiInsight('Gagal menjana analisis AI. Sila semak konfigurasi API.');
+      setAiInsight('Gagal menjana analisis AI. Sila cuba lagi.');
     } finally {
       setIsGeneratingAI(false);
     }
