@@ -11,7 +11,7 @@ Portal Aktiviti Pelajar UPM — an integrated student-affairs portal for BHEP UP
 
 Stack: Vite + React 19 + Tailwind v4 + TypeScript (strict), backed by Supabase (Auth + Postgres + Storage + Edge Functions). All UI text, docs, and commit messages are in Bahasa Melayu (see Language section).
 
-**Read `docs/HANDOFF.md` before making changes.** It records decisions already settled with the owner (do not reopen them), the 8-phase audit remediation completed on this branch, pending owner-side setup, and deliberate deferrals (do not "fix" them without reading the rationale). Update it after significant work.
+**Read `docs/HANDOFF.md` before making changes.** It records decisions already settled with the owner (do not reopen them), the 8-phase audit remediation (merged to `main` via PR #7), pending owner-side setup, and deliberate deferrals (do not "fix" them without reading the rationale). Update it after significant work. `docs/SCHEMA.md` is the detailed architecture/schema/security reference.
 
 ## Commands
 
@@ -19,12 +19,13 @@ Stack: Vite + React 19 + Tailwind v4 + TypeScript (strict), backed by Supabase (
 npm install
 npm run dev          # Vite dev server, port 3000, host 0.0.0.0
 npm run lint         # tsc --noEmit (strict mode)
-npx eslint src scripts  # ESLint — must stay at 0 errors (warnings allowed)
+npm run lint:eslint  # ESLint — 0 errors required; CI caps warnings at 100
 npm run check:bakat  # property checks: score engine, derivation, import planner/parser
 npm run build        # production build (code-split; recharts/xlsx lazy)
+npm run format       # Prettier (the repo is fully Prettier-formatted)
 ```
 
-Mandatory before every push: `npm run lint && npm run check:bakat && npm run build` — CI (`.github/workflows/ci.yml`) enforces all of them plus ESLint on every push/PR.
+Mandatory before every push: `npm run lint && npm run check:bakat && npm run build` plus ESLint — CI (`.github/workflows/ci.yml`) enforces all four on every PR and on push to `main` (feature-branch pushes do NOT trigger CI, so run them locally).
 
 There is no test framework. `scripts/check-bakat.ts` is one fast tsx script of property assertions (prints `ok`/`FAIL` per check, non-zero exit on failure; currently 87 checks). When changing `src/bakat/domain/`, `src/bakat/derive.ts`, `src/bakat/insights.ts`, `src/services/importParser.ts`, or `src/services/importPlan.ts`, extend the checks there.
 
@@ -55,14 +56,14 @@ When an application reaches `Lulus Sepenuhnya` AND its report is `Disahkan`, tal
 
 - `supabase/schema.sql` is the SOURCE OF TRUTH for tables + RLS + integrity triggers + FKs + the private `uploads` bucket + the admin-role seed. It is idempotent and the owner re-runs it manually (twice — second run must be error-free), so every schema change must use re-runnable forms (`if not exists`, `add column if not exists`, `or replace`, guarded `DO $$` blocks).
 - e-Kesatuan columns are quoted camelCase matching the TypeScript types exactly (no mapping layer); the evidence table uses snake_case. Status/role values are CHECK-constrained to the literal unions in `src/types.ts` — keep them in sync.
-- Security model: role comes ONLY from `users.role` (seeded for the portal account) — never hard-code emails in `is_admin()` or the client; public signups are disabled in the dashboard. Storage is PRIVATE: `uploadFile` stores paths, `getFileUrl` issues 1-hour signed URLs (and still understands legacy public URLs). Client in `src/supabase.ts`; the hard-coded publishable key is intentional (access control is RLS).
+- Security model: role comes ONLY from `users.role` (seeded for the portal account) — never hard-code emails in `is_admin()` or the client; public signups are disabled in the dashboard. Storage is PRIVATE: `uploadFile` stores paths, `getFileUrl` issues 1-hour signed URLs (and still understands legacy public URLs). Client in `src/supabase.ts`; the hard-coded publishable key is intentional (access control is RLS; `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` in `.env.local` override it).
 - Auth model: ONE shared portal account — username `ekmupm` → `ekmupm@portal-bhep.upm.edu.my`. Students never log in; student records use synthetic uids `M-<matric>`. The admin header "Uji" role picker only changes the VIEW — RLS + triggers are the real control.
 
 ## Gotchas
 
 - `src/types.ts` is the single types file (Bahasa Melayu statuses like `Lulus Sepenuhnya`).
 - The remote sandbox blocks `*.supabase.co`, so nothing can be tested against the real backend here. For visual verification use the in-memory mock per `docs/HANDOFF.md` §8 — but note the mock predates signed URLs and `functions.invoke` (file links and the AI button will show error states until it is extended). Never commit the mock wiring. `dev/` and `supabase/functions/` are excluded from tsc/ESLint (the latter is Deno code).
-- `react-hooks/exhaustive-deps` is deliberately `warn` (8 stable fetchData-in-effect warnings remain) — do not promote to `error` until those are refactored, or CI breaks.
+- `react-hooks/exhaustive-deps` (8 stable fetchData-in-effect warnings), the other react-hooks v7 rules (immutability, set-state-in-effect, …), and `no-explicit-any` are deliberately `warn` (~49 warnings repo-wide; CI fails above 100) — do not promote them to `error` until the underlying patterns are refactored, or CI breaks.
 - Playwright screenshots: launch with `executablePath: '/opt/pw-browsers/chromium'`.
 
 ## Language (Bahasa Melayu, DBP standard) — maintain
